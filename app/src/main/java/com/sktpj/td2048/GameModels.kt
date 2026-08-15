@@ -12,6 +12,15 @@ enum class GameOverReason { BOARD_STUCK, HP_ZERO }
 
 enum class BattleLogTone { INFO, GOOD, WARNING }
 
+enum class WeaponType {
+    NORMAL,
+    RAPID,
+    MACHINE_GUN,
+    PIERCING,
+    EXPLOSIVE,
+    LASER,
+}
+
 data class CharacterDefinition(
     val characterId: String,
     val name: String,
@@ -46,6 +55,15 @@ data class Projectile(
     val speed: Float,
     val handType: HandType,
     val onHitAbility: CharacterAbility,
+    val weaponType: WeaponType = WeaponType.NORMAL,
+)
+
+data class ColumnCombatState(
+    val column: Int,
+    val power: Int,
+    val level: Int,
+    val weaponType: WeaponType,
+    val cooldownRemainingSeconds: Float,
 )
 
 data class BossWarning(
@@ -80,4 +98,5 @@ data class GameSnapshot(
     val elapsedSeconds: Float = 0f,
     val eventLog: List<BattleLogEntry> = emptyList(),
     val hpDamageFlash: HpDamageFlash? = null,
+    val columns: List<ColumnCombatState> = emptyList(),
 )

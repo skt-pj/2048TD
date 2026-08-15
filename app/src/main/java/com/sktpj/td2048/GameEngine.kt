@@ -1,5 +1,6 @@
 package com.sktpj.td2048
 
+import kotlin.math.abs
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.random.Random
@@ -12,12 +13,10 @@ class GameEngine(
         private const val INITIAL_ENEMY_HP = 24f
         private const val ENEMIES_PER_WAVE = 7
         private const val ENEMY_SPAWN_SECONDS = 1.30f
-        private const val PROJECTILE_SPEED = 1.30f
         private const val BOSS_EVERY_WAVES = 5
         private const val BOSS_WARNING_SECONDS = 5f
         private const val BOSS_SPEED_RATIO = 0.55f
         private const val BOSS_HP_RATIO = 12f
-        private const val SLOW_SECONDS = 1.6f
         private const val SLOW_SPEED_RATIO = 0.65f
         private const val HP_DAMAGE_FLASH_SECONDS = 1.2f
         private const val MAX_LOG_ENTRIES = 6
@@ -26,6 +25,11 @@ class GameEngine(
             val row = GameRules.rowOf(cellIndex)
             val col = GameRules.colOf(cellIndex)
             return Pair((col + 0.5f) / 4f, 0.14f + row * 0.205f)
+        }
+
+        fun turretPosition(column: Int): Pair<Float, Float> {
+            require(column in 0 until GameRules.GRID_SIZE)
+            return Pair((column + 0.5f) / GameRules.GRID_SIZE, 0.955f)
         }
 
         fun enemyX(enemy: Enemy): Float =
@@ -82,6 +86,7 @@ class GameEngine(
             mergeBurst = result.createdValues.sum(),
             gameOverReason = gameOverReason,
             eventLog = nextLog,
+            columns = buildColumnStates(nextBoard, state.cooldowns),
         )
         return state
     }
@@ -120,12 +125,7 @@ class GameEngine(
             val leakDamage = leaked.sumOf { it.hp.toInt().coerceAtLeast(1) }
             currentHp = (currentHp - leakDamage).coerceAtLeast(0)
             hpDamageFlash = HpDamageFlash(leakDamage, HP_DAMAGE_FLASH_SECONDS)
-            eventLog = appendLog(
-                eventLog,
-                elapsedSeconds,
-                "敵突破  HP -$leakDamage",
-                BattleLogTone.WARNING,
-            )
+            eventLog = appendLog(eventLog, elapsedSeconds, "敵突破  HP -$leakDamage", BattleLogTone.WARNING)
             val leakedIds = leaked.mapTo(mutableSetOf()) { it.id }
             enemies = enemies.filterNot { it.id in leakedIds }
         }
@@ -139,6 +139,7 @@ class GameEngine(
                 elapsedSeconds = elapsedSeconds,
                 eventLog = eventLog,
                 hpDamageFlash = hpDamageFlash,
+                columns = buildColumnStates(state.board, state.cooldowns),
             )
             return state
         }
@@ -148,12 +149,7 @@ class GameEngine(
             if (nextRemaining <= 0f) {
                 val bossHand = pendingBossHand ?: bossWarning.handType
                 enemies = enemies + createBoss(enemyId++, wave, bossHand)
-                eventLog = appendLog(
-                    eventLog,
-                    elapsedSeconds,
-                    "BOSS出現  ${handLogLabel(bossHand)}",
-                    BattleLogTone.WARNING,
-                )
+                eventLog = appendLog(eventLog, elapsedSeconds, "BOSS出現", BattleLogTone.WARNING)
                 lastBossWave = wave
                 pendingBossHand = null
                 bossWarning = null
@@ -176,47 +172,46 @@ class GameEngine(
                     val hand = randomHand()
                     pendingBossHand = hand
                     bossWarning = BossWarning(BOSS_WARNING_SECONDS, hand)
-                    eventLog = appendLog(
-                        eventLog,
-                        elapsedSeconds,
-                        "BOSS WARNING  ${handLogLabel(hand)}",
-                        BattleLogTone.WARNING,
-                    )
+                    eventLog = appendLog(eventLog, elapsedSeconds, "BOSS WARNING", BattleLogTone.WARNING)
                 }
             }
         }
 
         val cooldowns = state.cooldowns.toMutableList()
-        for (index in cooldowns.indices) cooldowns[index] = (cooldowns[index] - delta).coerceAtLeast(0f)
+        for (index in cooldowns.indices) {
+            cooldowns[index] = (cooldowns[index] - delta).coerceAtLeast(0f)
+        }
 
         var projectiles = state.projectiles
-        for (cellIndex in 0 until GameRules.CELL_COUNT) {
-            val tileValue = state.board[cellIndex]
-            if (tileValue <= 0 || cooldowns[cellIndex] > 0f) continue
-            val target = TargetingPolicy.selectTarget(cellIndex, enemies) ?: continue
-            val character = formation[cellIndex]
-            val damage = DamageCalculator.damage(tileValue, character, GameRules.rowOf(cellIndex), target)
-            val (sourceX, sourceY) = nodePosition(cellIndex)
+        for (column in 0 until GameRules.GRID_SIZE) {
+            val power = ColumnCombatRules.columnPower(state.board, column)
+            if (power <= 0 || cooldowns[column] > 0f) continue
+            val target = ColumnCombatRules.selectTarget(column, enemies) ?: continue
+            val level = ColumnCombatRules.columnLevel(state.board, column)
+            val weaponType = ColumnCombatRules.weaponType(level)
+            val (sourceX, sourceY) = turretPosition(column)
             projectiles = projectiles + Projectile(
                 id = projectileId++,
-                sourceCellIndex = cellIndex,
-                sourceCharacterId = character.characterId,
+                sourceCellIndex = column,
+                sourceCharacterId = "column-$column",
                 targetEnemyId = target.id,
-                damage = damage,
+                damage = power,
                 x = sourceX,
                 y = sourceY,
-                speed = PROJECTILE_SPEED,
-                handType = character.handType,
-                onHitAbility = character.ability,
+                speed = ColumnCombatRules.projectileSpeed(weaponType),
+                handType = HandType.ROCK,
+                onHitAbility = CharacterAbility.NONE,
+                weaponType = weaponType,
             )
-            cooldowns[cellIndex] = character.attackIntervalMs / 1000f
+            cooldowns[column] = ColumnCombatRules.fireIntervalSeconds(weaponType)
         }
 
         val hits = mutableListOf<Projectile>()
         val moving = mutableListOf<Projectile>()
         for (projectile in projectiles) {
+            val sourceColumn = projectile.sourceCellIndex.coerceIn(0, GameRules.GRID_SIZE - 1)
             val existingTarget = enemies.firstOrNull { it.id == projectile.targetEnemyId }
-            val target = existingTarget ?: TargetingPolicy.selectTarget(projectile.sourceCellIndex, enemies)
+            val target = existingTarget ?: ColumnCombatRules.selectTarget(sourceColumn, enemies)
             if (target == null) continue
 
             val targetX = enemyX(target)
@@ -238,11 +233,52 @@ class GameEngine(
         }
 
         if (hits.isNotEmpty()) {
-            val hitByEnemy = hits.groupBy { it.targetEnemyId }
+            val damageByEnemyId = mutableMapOf<Int, Int>()
+            for (projectile in hits) {
+                val target = enemies.firstOrNull { it.id == projectile.targetEnemyId } ?: continue
+                val sourceColumn = projectile.sourceCellIndex.coerceIn(0, GameRules.GRID_SIZE - 1)
+                when (projectile.weaponType) {
+                    WeaponType.NORMAL,
+                    WeaponType.RAPID,
+                    WeaponType.MACHINE_GUN -> {
+                        addDamage(damageByEnemyId, target.id, projectile.damage)
+                    }
+
+                    WeaponType.PIERCING -> {
+                        addDamage(damageByEnemyId, target.id, projectile.damage)
+                        enemies.asSequence()
+                            .filter { it.id != target.id && ColumnCombatRules.canAttack(sourceColumn, it) }
+                            .sortedByDescending { it.progress }
+                            .take(2)
+                            .forEach { addDamage(damageByEnemyId, it.id, (projectile.damage * 0.70f).toInt().coerceAtLeast(1)) }
+                    }
+
+                    WeaponType.EXPLOSIVE -> {
+                        addDamage(damageByEnemyId, target.id, projectile.damage)
+                        enemies.asSequence()
+                            .filter {
+                                it.id != target.id &&
+                                    ColumnCombatRules.canAttack(sourceColumn, it) &&
+                                    abs(it.progress - target.progress) <= 0.14f
+                            }
+                            .forEach { addDamage(damageByEnemyId, it.id, (projectile.damage * 0.60f).toInt().coerceAtLeast(1)) }
+                    }
+
+                    WeaponType.LASER -> {
+                        enemies.asSequence()
+                            .filter { ColumnCombatRules.canAttack(sourceColumn, it) }
+                            .forEach { addDamage(damageByEnemyId, it.id, projectile.damage) }
+                    }
+                }
+            }
+
             val survivors = mutableListOf<Enemy>()
             for (enemy in enemies) {
-                val enemyHits = hitByEnemy[enemy.id].orEmpty()
-                val damage = enemyHits.sumOf { it.damage }
+                val damage = damageByEnemyId[enemy.id] ?: 0
+                if (damage <= 0) {
+                    survivors += enemy
+                    continue
+                }
                 val nextHp = enemy.hp - damage
                 if (nextHp <= 0f) {
                     score += enemy.maxHp.toInt()
@@ -255,11 +291,7 @@ class GameEngine(
                         )
                     }
                 } else {
-                    val slowed = enemyHits.any { it.onHitAbility == CharacterAbility.SLOW }
-                    survivors += enemy.copy(
-                        hp = nextHp,
-                        slowRemainingSeconds = if (slowed) max(enemy.slowRemainingSeconds, SLOW_SECONDS) else enemy.slowRemainingSeconds,
-                    )
+                    survivors += enemy.copy(hp = nextHp)
                 }
             }
             enemies = survivors
@@ -277,14 +309,17 @@ class GameEngine(
             elapsedSeconds = elapsedSeconds,
             eventLog = eventLog,
             hpDamageFlash = hpDamageFlash,
+            columns = buildColumnStates(state.board, cooldowns),
         )
         return state
     }
 
     private fun newGameState(): GameSnapshot {
         val maxHp = FormationRules.maxHp(formation)
+        val board = GameRules.initialBoard(random)
+        val cooldowns = List(GameRules.CELL_COUNT) { 0f }
         return GameSnapshot(
-            board = GameRules.initialBoard(random),
+            board = board,
             formation = formation,
             score = 0,
             currentHp = maxHp,
@@ -292,14 +327,31 @@ class GameEngine(
             wave = 1,
             enemies = emptyList(),
             projectiles = emptyList(),
-            cooldowns = List(GameRules.CELL_COUNT) { 0f },
+            cooldowns = cooldowns,
             bossWarning = null,
             gameOverReason = null,
             mergeBurst = 0,
             elapsedSeconds = 0f,
             eventLog = listOf(BattleLogEntry(0f, "防衛開始  WAVE 1", BattleLogTone.INFO)),
             hpDamageFlash = null,
+            columns = buildColumnStates(board, cooldowns),
         )
+    }
+
+    private fun buildColumnStates(board: List<Int>, cooldowns: List<Float>): List<ColumnCombatState> =
+        (0 until GameRules.GRID_SIZE).map { column ->
+            val level = ColumnCombatRules.columnLevel(board, column)
+            ColumnCombatState(
+                column = column,
+                power = ColumnCombatRules.columnPower(board, column),
+                level = level,
+                weaponType = ColumnCombatRules.weaponType(level),
+                cooldownRemainingSeconds = cooldowns.getOrElse(column) { 0f },
+            )
+        }
+
+    private fun addDamage(target: MutableMap<Int, Int>, enemyId: Int, damage: Int) {
+        target[enemyId] = (target[enemyId] ?: 0) + damage
     }
 
     private fun createNormalEnemy(id: Int, wave: Int): Enemy {
@@ -341,10 +393,4 @@ class GameEngine(
         message: String,
         tone: BattleLogTone,
     ): List<BattleLogEntry> = (current + BattleLogEntry(timestampSeconds, message, tone)).takeLast(MAX_LOG_ENTRIES)
-
-    private fun handLogLabel(handType: HandType): String = when (handType) {
-        HandType.ROCK -> "グー"
-        HandType.SCISSORS -> "チョキ"
-        HandType.PAPER -> "パー"
-    }
 }

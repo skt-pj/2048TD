@@ -4,6 +4,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -16,13 +18,14 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.util.Locale
+import kotlin.math.abs
 import kotlin.math.min
 
 internal val UiBackground = Color(0xFF080A0E)
@@ -148,35 +151,143 @@ internal fun CharacterAvatar(
     size: Dp = 40.dp,
 ) {
     val accent = handColor(character.handType)
+    val alpha = if (muted) 0.38f else 1f
+    val variant = abs(character.characterId.hashCode()) % 5
+
     Box(
         modifier = modifier
             .size(size)
             .background(
                 brush = Brush.radialGradient(
-                    colors = listOf(
-                        accent.copy(alpha = if (muted) 0.20f else 0.55f),
-                        UiPanelDeep,
-                    ),
+                    colors = listOf(accent.copy(alpha = 0.38f * alpha), UiPanelDeep),
                 ),
                 shape = CircleShape,
             )
-            .border(1.5.dp, accent.copy(alpha = if (muted) 0.35f else 0.95f), CircleShape),
+            .border(1.5.dp, accent.copy(alpha = 0.92f * alpha), CircleShape),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = character.name.take(1),
-            color = if (muted) UiMuted.copy(alpha = 0.55f) else UiText,
-            fontSize = if (size <= 28.dp) 10.sp else 15.sp,
-            fontWeight = FontWeight.Black,
-            textAlign = TextAlign.Center,
-        )
+        Canvas(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(if (size <= 28.dp) 2.dp else 3.dp),
+        ) {
+            val w = this.size.width
+            val h = this.size.height
+            val skin = when (variant) {
+                0 -> Color(0xFFF4C39B)
+                1 -> Color(0xFFDDA57C)
+                2 -> Color(0xFFF0B990)
+                3 -> Color(0xFFC98D68)
+                else -> Color(0xFFE7AF83)
+            }.copy(alpha = alpha)
+            val hair = when (variant) {
+                0 -> accent.copy(alpha = 0.95f * alpha)
+                1 -> Color(0xFF252934).copy(alpha = alpha)
+                2 -> Color(0xFFE5D2A3).copy(alpha = alpha)
+                3 -> Color(0xFF5A3425).copy(alpha = alpha)
+                else -> accent.copy(alpha = 0.72f * alpha)
+            }
+            val armor = accent.copy(alpha = 0.82f * alpha)
+
+            drawOval(
+                color = armor,
+                topLeft = Offset(w * 0.18f, h * 0.66f),
+                size = Size(w * 0.64f, h * 0.38f),
+            )
+            drawCircle(
+                color = skin,
+                radius = min(w, h) * 0.23f,
+                center = Offset(w * 0.50f, h * 0.48f),
+            )
+
+            when (variant) {
+                0 -> {
+                    val p = Path().apply {
+                        moveTo(w * 0.25f, h * 0.43f)
+                        lineTo(w * 0.33f, h * 0.20f)
+                        lineTo(w * 0.48f, h * 0.29f)
+                        lineTo(w * 0.60f, h * 0.17f)
+                        lineTo(w * 0.75f, h * 0.43f)
+                        lineTo(w * 0.67f, h * 0.36f)
+                        lineTo(w * 0.50f, h * 0.31f)
+                        close()
+                    }
+                    drawPath(p, hair)
+                }
+                1 -> {
+                    drawArc(
+                        color = hair,
+                        startAngle = 185f,
+                        sweepAngle = 170f,
+                        useCenter = true,
+                        topLeft = Offset(w * 0.22f, h * 0.18f),
+                        size = Size(w * 0.56f, h * 0.58f),
+                    )
+                    drawRect(hair, Offset(w * 0.20f, h * 0.39f), Size(w * 0.13f, h * 0.34f))
+                    drawRect(hair, Offset(w * 0.67f, h * 0.39f), Size(w * 0.13f, h * 0.34f))
+                }
+                2 -> {
+                    val p = Path().apply {
+                        moveTo(w * 0.24f, h * 0.41f)
+                        lineTo(w * 0.31f, h * 0.17f)
+                        lineTo(w * 0.44f, h * 0.26f)
+                        lineTo(w * 0.52f, h * 0.14f)
+                        lineTo(w * 0.60f, h * 0.27f)
+                        lineTo(w * 0.74f, h * 0.20f)
+                        lineTo(w * 0.76f, h * 0.43f)
+                        close()
+                    }
+                    drawPath(p, hair)
+                }
+                3 -> {
+                    drawArc(
+                        color = hair,
+                        startAngle = 180f,
+                        sweepAngle = 180f,
+                        useCenter = true,
+                        topLeft = Offset(w * 0.22f, h * 0.16f),
+                        size = Size(w * 0.56f, h * 0.62f),
+                    )
+                    drawCircle(hair, w * 0.10f, Offset(w * 0.78f, h * 0.27f))
+                }
+                else -> {
+                    drawArc(
+                        color = hair,
+                        startAngle = 195f,
+                        sweepAngle = 150f,
+                        useCenter = true,
+                        topLeft = Offset(w * 0.21f, h * 0.15f),
+                        size = Size(w * 0.58f, h * 0.62f),
+                    )
+                    drawLine(hair, Offset(w * 0.31f, h * 0.30f), Offset(w * 0.22f, h * 0.58f), w * 0.06f)
+                    drawLine(hair, Offset(w * 0.69f, h * 0.30f), Offset(w * 0.78f, h * 0.58f), w * 0.06f)
+                }
+            }
+
+            val eyeColor = UiPanelDeep.copy(alpha = alpha)
+            drawCircle(eyeColor, radius = w * 0.025f, center = Offset(w * 0.42f, h * 0.49f))
+            drawCircle(eyeColor, radius = w * 0.025f, center = Offset(w * 0.58f, h * 0.49f))
+            drawLine(
+                color = Color(0xFF9B5F54).copy(alpha = 0.75f * alpha),
+                start = Offset(w * 0.45f, h * 0.60f),
+                end = Offset(w * 0.55f, h * 0.60f),
+                strokeWidth = (w * 0.025f).coerceAtLeast(1f),
+            )
+            drawLine(
+                color = UiGold.copy(alpha = 0.72f * alpha),
+                start = Offset(w * 0.28f, h * 0.77f),
+                end = Offset(w * 0.72f, h * 0.77f),
+                strokeWidth = (w * 0.035f).coerceAtLeast(1f),
+            )
+        }
+
         HandIcon(
             handType = character.handType,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .size(if (size <= 28.dp) 10.dp else 14.dp)
-                .background(UiPanelDeep.copy(alpha = 0.92f), CircleShape),
-            tint = accent,
+                .background(UiPanelDeep.copy(alpha = 0.94f), CircleShape),
+            tint = accent.copy(alpha = alpha),
         )
     }
 }

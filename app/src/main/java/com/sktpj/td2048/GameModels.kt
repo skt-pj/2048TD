@@ -10,6 +10,8 @@ enum class CharacterAbility { NONE, BOSS_BONUS, SLOW }
 
 enum class GameOverReason { BOARD_STUCK, HP_ZERO }
 
+enum class BattleLogTone { INFO, GOOD, WARNING }
+
 data class CharacterDefinition(
     val characterId: String,
     val name: String,
@@ -18,6 +20,7 @@ data class CharacterDefinition(
     val attackCoefficient: Float,
     val attackIntervalMs: Int,
     val ability: CharacterAbility = CharacterAbility.NONE,
+    val level: Int = 1,
 )
 
 data class Enemy(
@@ -50,6 +53,17 @@ data class BossWarning(
     val handType: HandType,
 )
 
+data class BattleLogEntry(
+    val timestampSeconds: Float,
+    val message: String,
+    val tone: BattleLogTone = BattleLogTone.INFO,
+)
+
+data class HpDamageFlash(
+    val amount: Int,
+    val remainingSeconds: Float,
+)
+
 data class GameSnapshot(
     val board: List<Int>,
     val formation: List<CharacterDefinition>,
@@ -63,4 +77,7 @@ data class GameSnapshot(
     val bossWarning: BossWarning?,
     val gameOverReason: GameOverReason?,
     val mergeBurst: Int,
+    val elapsedSeconds: Float = 0f,
+    val eventLog: List<BattleLogEntry> = emptyList(),
+    val hpDamageFlash: HpDamageFlash? = null,
 )

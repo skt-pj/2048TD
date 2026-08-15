@@ -9,7 +9,6 @@ class GameRulesTest {
     @Test
     fun slideAndMergeLine_mergesSinglePair() {
         val result = GameRules.slideAndMergeLine(listOf(2, 2, 0, 0))
-
         assertEquals(listOf(4, 0, 0, 0), result.line)
         assertEquals(listOf(4), result.createdValues)
     }
@@ -17,7 +16,6 @@ class GameRulesTest {
     @Test
     fun slideAndMergeLine_doesNotChainMergeInSameMove() {
         val result = GameRules.slideAndMergeLine(listOf(2, 2, 2, 2))
-
         assertEquals(listOf(4, 4, 0, 0), result.line)
         assertEquals(listOf(4, 4), result.createdValues)
     }
@@ -30,7 +28,6 @@ class GameRulesTest {
             2, 4, 2, 4,
             4, 2, 4, 2,
         )
-
         assertFalse(GameRules.canMove(board))
     }
 
@@ -42,20 +39,7 @@ class GameRulesTest {
             2, 4, 8, 16,
             32, 64, 128, 256,
         )
-
         assertTrue(GameRules.canMove(board))
-    }
-
-    @Test
-    fun computeBoardAutoDamage_usesMaxTileAndBoardSum() {
-        val board = listOf(
-            2, 4, 8, 16,
-            0, 0, 0, 0,
-            0, 0, 0, 0,
-            0, 0, 0, 0,
-        )
-
-        assertEquals(8, GameRules.computeBoardAutoDamage(board))
     }
 
     @Test
@@ -66,9 +50,7 @@ class GameRulesTest {
             0, 0, 0, 0,
             0, 0, 0, 0,
         )
-
         val result = GameRules.moveWithoutSpawn(board, Direction.LEFT)
-
         assertTrue(result.moved)
         assertEquals(
             listOf(

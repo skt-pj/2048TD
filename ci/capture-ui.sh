@@ -45,7 +45,13 @@ PY
 adb install -r "$APK" >/dev/null
 adb shell am force-stop "$PACKAGE"
 adb shell am start -n "$ACTIVITY" >/dev/null
-sleep 4
+sleep 5
+
+# First-frame capture can race with the initial Compose draw on a cold emulator.
+# Enter/leave pause once so the actual game UI is definitely rendered before the acceptance screenshot.
+tap_text "Ⅱ"
+tap_text "再開"
+sleep 1
 capture "01-main-game"
 
 tap_text "Ⅱ"

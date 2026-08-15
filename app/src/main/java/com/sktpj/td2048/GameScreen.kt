@@ -1,5 +1,8 @@
 package com.sktpj.td2048
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.darkColorScheme
@@ -11,7 +14,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
-import androidx.compose.foundation.layout.fillMaxSize
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
@@ -25,6 +27,10 @@ private enum class AppScreen {
 
 @Composable
 fun GameApp() {
+    BackHandler(enabled = true) {
+        // System back key / back gesture is intentionally disabled.
+    }
+
     val ownedCharacters = remember { StarterRoster.characters }
     val engine = remember { GameEngine(initialFormation = ownedCharacters) }
     var snapshot by remember { mutableStateOf(engine.snapshot()) }
@@ -68,22 +74,25 @@ fun GameApp() {
             color = UiBackground,
         ) {
             when (screen) {
-                AppScreen.GAME -> MainGameScreen(
-                    snapshot = snapshot,
-                    paused = paused,
-                    settings = settings,
-                    onSettingsChange = { settings = it },
-                    onMove = { direction -> snapshot = engine.move(direction) },
-                    onReset = {
-                        paused = false
-                        snapshot = engine.reset()
-                    },
-                    onPause = { paused = !paused },
-                    onQuit = {
-                        paused = false
-                        screen = AppScreen.HOME
-                    },
-                )
+                AppScreen.GAME -> Box(modifier = Modifier.fillMaxSize()) {
+                    MainGameScreen(
+                        snapshot = snapshot,
+                        paused = paused,
+                        settings = settings,
+                        onSettingsChange = { settings = it },
+                        onMove = { direction -> snapshot = engine.move(direction) },
+                        onReset = {
+                            paused = false
+                            snapshot = engine.reset()
+                        },
+                        onPause = { paused = !paused },
+                        onQuit = {
+                            paused = false
+                            screen = AppScreen.HOME
+                        },
+                    )
+                    ScoreOverlay(score = snapshot.score)
+                }
 
                 AppScreen.HOME -> HomeScreen(
                     formation = snapshot.formation,

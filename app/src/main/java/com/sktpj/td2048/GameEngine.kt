@@ -19,6 +19,8 @@ class GameEngine(
         private const val BOSS_HP_RATIO = 12f
         private const val SLOW_SECONDS = 1.6f
         private const val SLOW_SPEED_RATIO = 0.65f
+        private const val HP_DAMAGE_FLASH_SECONDS = 1.2f
+        private const val MAX_LOG_ENTRIES = 6
 
         fun nodePosition(cellIndex: Int): Pair<Float, Float> {
             val row = GameRules.rowOf(cellIndex)
@@ -68,11 +70,18 @@ class GameEngine(
         val result = GameRules.moveWithoutSpawn(state.board, direction)
         if (!result.moved) return state
         val nextBoard = GameRules.spawnRandomTile(result.board, random)
+        val gameOverReason = if (GameRules.canMove(nextBoard)) null else GameOverReason.BOARD_STUCK
+        val nextLog = if (gameOverReason == GameOverReason.BOARD_STUCK) {
+            appendLog(state.eventLog, state.elapsedSeconds, "2048盤面が詰まりました", BattleLogTone.WARNING)
+        } else {
+            state.eventLog
+        }
         state = state.copy(
             board = nextBoard,
             score = state.score + result.createdValues.sum(),
             mergeBurst = result.createdValues.sum(),
-            gameOverReason = if (GameRules.canMove(nextBoard)) null else GameOverReason.BOARD_STUCK,
+            gameOverReason = gameOverReason,
+            eventLog = nextLog,
         )
         return state
     }
@@ -86,11 +95,17 @@ class GameEngine(
     fun tick(deltaSeconds: Float): GameSnapshot {
         if (state.gameOverReason != null) return state
         val delta = deltaSeconds.coerceIn(0f, 0.05f)
+        val elapsedSeconds = state.elapsedSeconds + delta
 
         var wave = state.wave
         var score = state.score
         var currentHp = state.currentHp
         var bossWarning = state.bossWarning
+        var eventLog = state.eventLog
+        var hpDamageFlash = state.hpDamageFlash?.let { flash ->
+            val remaining = flash.remainingSeconds - delta
+            if (remaining > 0f) flash.copy(remainingSeconds = remaining) else null
+        }
         var enemies = state.enemies.map { enemy ->
             val remainingSlow = (enemy.slowRemainingSeconds - delta).coerceAtLeast(0f)
             val speedMultiplier = if (enemy.slowRemainingSeconds > 0f) SLOW_SPEED_RATIO else 1f
@@ -102,16 +117,28 @@ class GameEngine(
 
         val leaked = enemies.filter { it.progress >= 1f }
         if (leaked.isNotEmpty()) {
-            currentHp = (currentHp - leaked.sumOf { it.hp.toInt().coerceAtLeast(1) }).coerceAtLeast(0)
+            val leakDamage = leaked.sumOf { it.hp.toInt().coerceAtLeast(1) }
+            currentHp = (currentHp - leakDamage).coerceAtLeast(0)
+            hpDamageFlash = HpDamageFlash(leakDamage, HP_DAMAGE_FLASH_SECONDS)
+            eventLog = appendLog(
+                eventLog,
+                elapsedSeconds,
+                "敵突破  HP -$leakDamage",
+                BattleLogTone.WARNING,
+            )
             val leakedIds = leaked.mapTo(mutableSetOf()) { it.id }
             enemies = enemies.filterNot { it.id in leakedIds }
         }
 
         if (currentHp <= 0) {
+            eventLog = appendLog(eventLog, elapsedSeconds, "総HPが0になりました", BattleLogTone.WARNING)
             state = state.copy(
                 currentHp = 0,
                 enemies = enemies,
                 gameOverReason = GameOverReason.HP_ZERO,
+                elapsedSeconds = elapsedSeconds,
+                eventLog = eventLog,
+                hpDamageFlash = hpDamageFlash,
             )
             return state
         }
@@ -121,6 +148,12 @@ class GameEngine(
             if (nextRemaining <= 0f) {
                 val bossHand = pendingBossHand ?: bossWarning.handType
                 enemies = enemies + createBoss(enemyId++, wave, bossHand)
+                eventLog = appendLog(
+                    eventLog,
+                    elapsedSeconds,
+                    "BOSS出現  ${handLogLabel(bossHand)}",
+                    BattleLogTone.WARNING,
+                )
                 lastBossWave = wave
                 pendingBossHand = null
                 bossWarning = null
@@ -138,10 +171,17 @@ class GameEngine(
             if (enemiesSpawnedThisWave >= ENEMIES_PER_WAVE) {
                 enemiesSpawnedThisWave = 0
                 wave += 1
+                eventLog = appendLog(eventLog, elapsedSeconds, "WAVE $wave", BattleLogTone.INFO)
                 if (wave % BOSS_EVERY_WAVES == 0 && lastBossWave != wave) {
                     val hand = randomHand()
                     pendingBossHand = hand
                     bossWarning = BossWarning(BOSS_WARNING_SECONDS, hand)
+                    eventLog = appendLog(
+                        eventLog,
+                        elapsedSeconds,
+                        "BOSS WARNING  ${handLogLabel(hand)}",
+                        BattleLogTone.WARNING,
+                    )
                 }
             }
         }
@@ -206,6 +246,14 @@ class GameEngine(
                 val nextHp = enemy.hp - damage
                 if (nextHp <= 0f) {
                     score += enemy.maxHp.toInt()
+                    if (enemy.enemyType == EnemyType.BOSS) {
+                        eventLog = appendLog(
+                            eventLog,
+                            elapsedSeconds,
+                            "BOSS撃破  SCORE +${enemy.maxHp.toInt()}",
+                            BattleLogTone.GOOD,
+                        )
+                    }
                 } else {
                     val slowed = enemyHits.any { it.onHitAbility == CharacterAbility.SLOW }
                     survivors += enemy.copy(
@@ -226,6 +274,9 @@ class GameEngine(
             projectiles = moving,
             cooldowns = cooldowns,
             bossWarning = bossWarning,
+            elapsedSeconds = elapsedSeconds,
+            eventLog = eventLog,
+            hpDamageFlash = hpDamageFlash,
         )
         return state
     }
@@ -245,6 +296,9 @@ class GameEngine(
             bossWarning = null,
             gameOverReason = null,
             mergeBurst = 0,
+            elapsedSeconds = 0f,
+            eventLog = listOf(BattleLogEntry(0f, "防衛開始  WAVE 1", BattleLogTone.INFO)),
+            hpDamageFlash = null,
         )
     }
 
@@ -280,4 +334,17 @@ class GameEngine(
     private fun normalEnemyHp(wave: Int): Float = INITIAL_ENEMY_HP + wave * 7f
 
     private fun randomHand(): HandType = HandType.entries[random.nextInt(HandType.entries.size)]
+
+    private fun appendLog(
+        current: List<BattleLogEntry>,
+        timestampSeconds: Float,
+        message: String,
+        tone: BattleLogTone,
+    ): List<BattleLogEntry> = (current + BattleLogEntry(timestampSeconds, message, tone)).takeLast(MAX_LOG_ENTRIES)
+
+    private fun handLogLabel(handType: HandType): String = when (handType) {
+        HandType.ROCK -> "グー"
+        HandType.SCISSORS -> "チョキ"
+        HandType.PAPER -> "パー"
+    }
 }

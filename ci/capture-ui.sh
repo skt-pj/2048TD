@@ -13,6 +13,16 @@ capture() {
   adb exec-out screencap -p > "$OUT_DIR/$name.png"
 }
 
+dump_failure() {
+  echo "=== UI CAPTURE DIAGNOSTICS ===" >&2
+  if [[ -f "$OUT_DIR/window.xml" ]]; then
+    cat "$OUT_DIR/window.xml" >&2 || true
+  fi
+  echo "=== LOGCAT ===" >&2
+  adb logcat -d -t 250 >&2 || true
+}
+trap dump_failure ERR
+
 tap_text() {
   local target="$1"
   adb shell uiautomator dump --compressed /sdcard/window.xml >/dev/null

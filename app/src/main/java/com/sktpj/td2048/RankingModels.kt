@@ -69,6 +69,7 @@ sealed interface RankingSubmissionState {
         val bestScore: Int,
         val bestUpdated: Boolean,
     ) : RankingSubmissionState
+    data object SubmittedEarlier : RankingSubmissionState
     data object Pending : RankingSubmissionState
     data object Unavailable : RankingSubmissionState
 }

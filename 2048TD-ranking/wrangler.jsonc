@@ -1,0 +1,31 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "2048td-ranking",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-15",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "2048td-ranking",
+      "database_id": "7fef374f-6261-44db-986b-06279ea687cc",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "ratelimits": [
+    {
+      "name": "START_RATE_LIMITER",
+      "namespace_id": "204801",
+      "simple": { "limit": 10, "period": 60 }
+    },
+    {
+      "name": "FINISH_RATE_LIMITER",
+      "namespace_id": "204802",
+      "simple": { "limit": 10, "period": 60 }
+    },
+    {
+      "name": "LEADERBOARD_RATE_LIMITER",
+      "namespace_id": "204803",
+      "simple": { "limit": 120, "period": 60 }
+    }
+  ]
+}

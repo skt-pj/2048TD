@@ -30,6 +30,10 @@
 
 このリポジトリには GitHub Actions の Android CI も含まれています。CI では単体テストを実行した後、debug APK を生成して `2048TD-debug-apk` artifact として保存します。
 
+## オンラインランキングサーバー
+
+Cloudflare Workers + D1 のランキング API は [`2048TD-ranking`](./2048TD-ranking/) にあります。セットアップ、migration、テスト、ローカル起動、本番 deploy、API の利用例は同ディレクトリの README を参照してください。
+
 ## コマンドラインビルド
 
 Gradle 8.13 が PATH にある環境では次で確認できます。

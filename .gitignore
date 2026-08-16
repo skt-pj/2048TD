@@ -9,3 +9,7 @@
 .cxx/
 app/build/
 ci/*.jks
+2048TD-ranking/node_modules/
+2048TD-ranking/.wrangler/
+2048TD-ranking/dist/
+2048TD-ranking/worker-configuration.d.ts

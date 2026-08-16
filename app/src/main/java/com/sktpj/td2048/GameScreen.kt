@@ -173,7 +173,6 @@ fun GameApp() {
                         snapshot = snapshot,
                         paused = paused,
                         settings = settings,
-                        rankingSubmissionState = rankingSubmissionState,
                         onSettingsChange = { settings = it },
                         onMove = { direction -> snapshot = engine.move(direction) },
                         onReset = {
@@ -193,35 +192,40 @@ fun GameApp() {
                         },
                     )
                     ScoreOverlay(score = snapshot.score)
+                    if (snapshot.gameOverReason != null) {
+                        RankingGameOverStatusOverlay(rankingSubmissionState)
+                    }
                 }
 
-                AppScreen.HOME -> HomeScreen(
-                    formation = snapshot.formation,
-                    onStart = {
-                        paused = false
-                        rankingRunId = null
-                        rankingSubmissionState = RankingSubmissionState.Starting
-                        gameSessionId += 1
-                        snapshot = engine.reset()
-                        screen = AppScreen.GAME
-                    },
-                    onFormation = {
-                        formationDraft = snapshot.formation
-                        screen = AppScreen.FORMATION
-                    },
-                    onCharacters = {
-                        selectedCharacter = null
-                        characterBackScreen = AppScreen.HOME
-                        screen = AppScreen.CHARACTERS
-                    },
-                    onGacha = {
-                        screen = AppScreen.GACHA
-                    },
-                    onRanking = {
+                AppScreen.HOME -> Box(modifier = Modifier.fillMaxSize()) {
+                    HomeScreen(
+                        formation = snapshot.formation,
+                        onStart = {
+                            paused = false
+                            rankingRunId = null
+                            rankingSubmissionState = RankingSubmissionState.Starting
+                            gameSessionId += 1
+                            snapshot = engine.reset()
+                            screen = AppScreen.GAME
+                        },
+                        onFormation = {
+                            formationDraft = snapshot.formation
+                            screen = AppScreen.FORMATION
+                        },
+                        onCharacters = {
+                            selectedCharacter = null
+                            characterBackScreen = AppScreen.HOME
+                            screen = AppScreen.CHARACTERS
+                        },
+                        onGacha = {
+                            screen = AppScreen.GACHA
+                        },
+                    )
+                    RankingHomeButton {
                         rankingRefreshKey += 1
                         screen = AppScreen.RANKING
-                    },
-                )
+                    }
+                }
 
                 AppScreen.FORMATION -> FormationScreen(
                     formation = formationDraft,

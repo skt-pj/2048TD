@@ -75,4 +75,9 @@ capture "07-home-return"
 tap_text "ガチャ"
 capture "08-gacha"
 
+tap_text "‹"
+tap_text "RANKING"
+sleep 2
+capture "09-ranking"
+
 rm -f "$OUT_DIR/window.xml"

@@ -74,6 +74,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material3:material3")
+    implementation("io.github.piotrprus:particle-emitter:1.0.5")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 

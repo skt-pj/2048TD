@@ -1,5 +1,12 @@
 package com.sktpj.td2048
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -16,18 +23,23 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.delay
+import kotlin.math.PI
 import kotlin.math.ceil
+import kotlin.math.min
+import kotlin.math.sin
 
 private val FeverPanel = Color(0xE6060A0F)
 private val FeverCyan = Color(0xFF00F5FF)
@@ -41,42 +53,110 @@ internal fun ComboFeverOverlay(
     simpleEffects: Boolean,
 ) {
     var seenFeverCount by remember { mutableIntStateOf(state.feverCount) }
-    var showFeverFlash by remember { mutableStateOf(false) }
+    val feverFlash = remember { Animatable(1f) }
+    val transition = rememberInfiniteTransition(label = "fever-vector-transition")
+    val vectorPhase by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1050, easing = LinearEasing),
+        ),
+        label = "fever-vector-phase",
+    )
 
     LaunchedEffect(state.feverCount) {
-        when {
-            state.feverCount < seenFeverCount -> {
-                seenFeverCount = state.feverCount
-                showFeverFlash = false
-            }
-            state.feverCount > seenFeverCount -> {
-                seenFeverCount = state.feverCount
-                showFeverFlash = true
-                delay(if (simpleEffects) 300 else 650)
-                showFeverFlash = false
-            }
+        if (state.feverCount < seenFeverCount) {
+            seenFeverCount = state.feverCount
+            feverFlash.snapTo(1f)
+        } else if (state.feverCount > seenFeverCount) {
+            seenFeverCount = state.feverCount
+            feverFlash.snapTo(0f)
+            feverFlash.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(durationMillis = if (simpleEffects) 420 else 780),
+            )
         }
     }
 
+    val flashWave = sin((feverFlash.value * PI).toFloat()).coerceIn(0f, 1f)
+
     Box(modifier = Modifier.fillMaxSize()) {
-        if (state.feverActive) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(FeverPink.copy(alpha = if (simpleEffects) 0.025f else 0.055f))
-                    .border(2.dp, FeverPink.copy(alpha = if (simpleEffects) 0.45f else 0.80f)),
-            )
+        if (state.feverActive || flashWave > 0.01f) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val center = Offset(size.width / 2f, size.height * 0.46f)
+                val baseRadius = min(size.width, size.height) * 0.22f
+                val activeAlpha = if (state.feverActive) 1f else flashWave
+
+                drawVectorRadialGlow(
+                    center = center,
+                    radius = baseRadius * (1.85f + 0.20f * vectorPhase),
+                    color = FeverPink.copy(alpha = activeAlpha),
+                    simpleEffects = simpleEffects,
+                )
+
+                if (state.feverActive) {
+                    val ringRadius = baseRadius * (1.0f + 0.14f * vectorPhase)
+                    drawCircle(
+                        color = FeverPink.copy(alpha = if (simpleEffects) 0.42f else 0.72f),
+                        radius = ringRadius,
+                        center = center,
+                        style = Stroke(width = if (simpleEffects) 2f else 3f),
+                    )
+                    drawVectorReticle(
+                        center = center,
+                        color = FeverPink,
+                        radius = ringRadius * 1.18f,
+                        phase = vectorPhase,
+                        simpleEffects = simpleEffects,
+                    )
+                    if (!simpleEffects) {
+                        drawVectorSparkBurst(
+                            center = center,
+                            color = FeverPink,
+                            radius = baseRadius * 1.50f,
+                            phase = vectorPhase,
+                            simpleEffects = false,
+                        )
+                    }
+                }
+
+                if (flashWave > 0.01f) {
+                    val shockRadius = baseRadius * (0.45f + feverFlash.value * 2.0f)
+                    drawCircle(
+                        color = FeverPink.copy(alpha = 0.90f * flashWave),
+                        radius = shockRadius,
+                        center = center,
+                        style = Stroke(width = 3.5f + 5f * flashWave),
+                    )
+                    if (!simpleEffects) {
+                        drawCircle(
+                            color = FeverCyan.copy(alpha = 0.45f * flashWave),
+                            radius = shockRadius * 0.78f,
+                            center = center,
+                            style = Stroke(width = 2.5f),
+                        )
+                    }
+                }
+
+                if (state.feverActive) {
+                    val edgeAlpha = if (simpleEffects) 0.22f else 0.42f
+                    drawRect(
+                        color = FeverPink.copy(alpha = edgeAlpha),
+                        style = Stroke(width = if (simpleEffects) 2f else 3.5f),
+                    )
+                }
+            }
         }
 
         Column(
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .padding(start = 10.dp, top = 66.dp)
-                .width(112.dp)
+                .width(118.dp)
                 .background(FeverPanel, RoundedCornerShape(9.dp))
                 .border(
                     1.dp,
-                    if (state.feverActive) FeverPink.copy(alpha = 0.88f) else FeverCyan.copy(alpha = 0.50f),
+                    if (state.feverActive) FeverPink.copy(alpha = 0.92f) else FeverCyan.copy(alpha = 0.55f),
                     RoundedCornerShape(9.dp),
                 )
                 .padding(horizontal = 8.dp, vertical = 6.dp),
@@ -103,32 +183,43 @@ internal fun ComboFeverOverlay(
                 modifier = Modifier
                     .padding(top = 3.dp)
                     .fillMaxWidth()
-                    .height(6.dp)
-                    .background(Color(0xFF101820), RoundedCornerShape(3.dp)),
+                    .height(7.dp)
+                    .background(Color(0xFF101820), RoundedCornerShape(4.dp)),
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(state.feverGaugeRatio)
                         .fillMaxHeight()
                         .background(
-                            if (state.feverActive) FeverPink else FeverCyan,
-                            RoundedCornerShape(3.dp),
+                            Brush.horizontalGradient(
+                                colors = if (state.feverActive) {
+                                    listOf(FeverCyan, FeverPink, Color.White)
+                                } else {
+                                    listOf(FeverCyan.copy(alpha = 0.72f), FeverCyan)
+                                },
+                            ),
+                            RoundedCornerShape(4.dp),
                         ),
                 )
             }
         }
 
-        if (showFeverFlash) {
+        if (flashWave > 0.01f) {
             Text(
                 text = "FEVER!",
                 modifier = Modifier
                     .align(Alignment.Center)
-                    .width(220.dp)
-                    .background(Color(0xD9020406), RoundedCornerShape(14.dp))
-                    .border(2.dp, FeverPink, RoundedCornerShape(14.dp))
-                    .padding(vertical = 12.dp),
+                    .width(230.dp)
+                    .graphicsLayer {
+                        alpha = flashWave
+                        scaleX = 0.82f + 0.30f * flashWave
+                        scaleY = 0.82f + 0.30f * flashWave
+                    }
+                    .background(Color(0xC9020406), RoundedCornerShape(14.dp))
+                    .border(2.dp, FeverPink.copy(alpha = flashWave), RoundedCornerShape(14.dp))
+                    .padding(vertical = 11.dp),
                 color = FeverPink,
-                fontSize = 34.sp,
+                fontSize = 36.sp,
                 fontWeight = FontWeight.Black,
                 textAlign = TextAlign.Center,
             )

@@ -4,10 +4,12 @@ on:
   push:
     branches:
       - 'build/**'
+      - 'agent/**'
     paths:
       - 'version.properties'
       - 'app/**'
       - 'ci/apply-combo-fever-build.py'
+      - 'ci/apply-vector-effects-build.py'
       - '.github/workflows/android.yml'
   pull_request:
     branches:
@@ -16,6 +18,7 @@ on:
       - 'version.properties'
       - 'app/**'
       - 'ci/apply-combo-fever-build.py'
+      - 'ci/apply-vector-effects-build.py'
       - '.github/workflows/android.yml'
   workflow_dispatch:
 
@@ -42,6 +45,9 @@ jobs:
 
       - name: Apply COMBO and FEVER integration patch
         run: python3 ci/apply-combo-fever-build.py
+
+      - name: Apply vector effect integration patch
+        run: python3 ci/apply-vector-effects-build.py
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5

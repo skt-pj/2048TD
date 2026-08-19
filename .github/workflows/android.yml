@@ -4,10 +4,15 @@ on:
   push:
     branches:
       - 'build/**'
+    paths:
+      - 'version.properties'
+      - 'app/**'
+      - 'ci/apply-combo-fever-build.py'
+      - '.github/workflows/android.yml'
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -77,3 +82,19 @@ jobs:
             ${{ steps.files.outputs.apk }}.sha256
             signing-certificate.txt
           if-no-files-found: error
+
+      - name: Record successful build run
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s\n%s\n%s\n' \
+            "${GITHUB_RUN_ID}" \
+            "${GITHUB_SHA}" \
+            "2048TD-v${{ steps.version.outputs.name }}-signed-build" \
+            > ci/last-signed-build-run.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ci/last-signed-build-run.txt
+          git commit -m "Record signed build run ${GITHUB_RUN_ID}"
+          git push

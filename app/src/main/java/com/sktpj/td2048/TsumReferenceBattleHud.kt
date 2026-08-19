@@ -18,9 +18,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -98,7 +98,6 @@ internal fun TsumReferenceBattleHud(
         val compact = maxWidth < 340.dp
         val comboNumberSize = if (compact) 32.sp else 36.sp
         val comboLabelSize = if (compact) 11.sp else 13.sp
-        val feverLabelSize = if (compact) 12.sp else 14.sp
         val gaugeLabelSize = if (compact) 14.sp else 16.sp
         val gaugeHeight = if (compact) 30.dp else 34.dp
 
@@ -146,26 +145,6 @@ internal fun TsumReferenceBattleHud(
                     ),
                 )
             }
-        }
-
-        if (state.feverActive) {
-            Text(
-                text = "FEVER",
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 11.dp),
-                color = TsumHudGold,
-                fontSize = feverLabelSize,
-                fontWeight = FontWeight.Black,
-                letterSpacing = 0.6.sp,
-                style = TextStyle(
-                    shadow = Shadow(
-                        color = TsumHudNavy,
-                        offset = Offset(0f, 1.5f),
-                        blurRadius = 5f,
-                    ),
-                ),
-            )
         }
 
         Box(

@@ -7,17 +7,6 @@ import org.junit.Test
 
 class ComboFeverRulesTest {
     @Test
-    fun comboWindows_followReferenceThresholds() {
-        assertEquals(3f, ComboFeverRules.comboWindowSeconds(1), 0.0001f)
-        assertEquals(3f, ComboFeverRules.comboWindowSeconds(50), 0.0001f)
-        assertEquals(2f, ComboFeverRules.comboWindowSeconds(51), 0.0001f)
-        assertEquals(2f, ComboFeverRules.comboWindowSeconds(100), 0.0001f)
-        assertEquals(1f, ComboFeverRules.comboWindowSeconds(101), 0.0001f)
-        assertEquals(1f, ComboFeverRules.comboWindowSeconds(500), 0.0001f)
-        assertEquals(0.5f, ComboFeverRules.comboWindowSeconds(501), 0.0001f)
-    }
-
-    @Test
     fun mergeCount_isConvertedToConsumedSourceTiles() {
         assertEquals(0, ComboFeverRules.processedTilesForMergeCount(0))
         assertEquals(2, ComboFeverRules.processedTilesForMergeCount(1))
@@ -25,15 +14,20 @@ class ComboFeverRulesTest {
     }
 
     @Test
-    fun comboExpiresAfterCurrentWindow() {
+    fun comboRepresentsMergesResolvedByOneSwipe() {
         val controller = ComboFeverController()
-        controller.onMerge(1)
 
-        assertEquals(1, controller.snapshot().combo)
-        controller.tick(2.9f)
-        assertEquals(1, controller.snapshot().combo)
-        controller.tick(0.2f)
-        assertEquals(0, controller.snapshot().combo)
+        controller.onMerge(3)
+        assertEquals(3, controller.snapshot().combo)
+        assertEquals(1, controller.snapshot().comboEventId)
+
+        controller.tick(30f)
+        assertEquals(3, controller.snapshot().combo)
+        assertEquals(1, controller.snapshot().comboEventId)
+
+        controller.onMerge(2)
+        assertEquals(2, controller.snapshot().combo)
+        assertEquals(2, controller.snapshot().comboEventId)
     }
 
     @Test
@@ -51,20 +45,17 @@ class ComboFeverRulesTest {
     }
 
     @Test
-    fun comboDoesNotExpireDuringFever() {
+    fun feverDoesNotPrechargeTheNextGauge() {
         val controller = ComboFeverController()
         repeat(15) { controller.onMerge(1) }
-        val comboAtStart = controller.snapshot().combo
-
-        controller.tick(10.5f)
         assertTrue(controller.snapshot().feverActive)
-        assertEquals(comboAtStart, controller.snapshot().combo)
 
-        controller.tick(0.6f)
+        controller.onMerge(4)
+        assertEquals(4, controller.snapshot().combo)
+        assertEquals(29, controller.snapshot().feverGaugeTiles)
+
+        controller.tick(ComboFeverRules.FEVER_DURATION_SECONDS + 0.1f)
         assertFalse(controller.snapshot().feverActive)
-        assertEquals(comboAtStart, controller.snapshot().combo)
-
-        controller.tick(3.1f)
-        assertEquals(0, controller.snapshot().combo)
+        assertEquals(0, controller.snapshot().feverGaugeTiles)
     }
 }

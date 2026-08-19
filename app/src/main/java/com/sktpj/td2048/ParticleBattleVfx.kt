@@ -12,14 +12,14 @@ import nl.dionsegijn.konfetti.core.models.Shape
 import nl.dionsegijn.konfetti.core.models.Size
 import java.util.concurrent.TimeUnit
 
-private const val ParticleWhite = 0xFFF8FDFF.toInt()
-private const val ParticleCyan = 0xFF45F7FF.toInt()
-private const val ParticleBlue = 0xFF5D86FF.toInt()
-private const val ParticleViolet = 0xFFB56CFF.toInt()
-private const val ParticleOrange = 0xFFFF8A2A.toInt()
-private const val ParticlePink = 0xFFFF48D8.toInt()
-private const val ParticleRed = 0xFFFF4B63.toInt()
-private const val ParticleGold = 0xFFFFD65A.toInt()
+private val ParticleWhite = 0xFFF8FDFF.toInt()
+private val ParticleCyan = 0xFF45F7FF.toInt()
+private val ParticleBlue = 0xFF5D86FF.toInt()
+private val ParticleViolet = 0xFFB56CFF.toInt()
+private val ParticleOrange = 0xFFFF8A2A.toInt()
+private val ParticlePink = 0xFFFF48D8.toInt()
+private val ParticleRed = 0xFFFF4B63.toInt()
+private val ParticleGold = 0xFFFFD65A.toInt()
 
 /**
  * Third-party particle layer for battlefield feedback only.

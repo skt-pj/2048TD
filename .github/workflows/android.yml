@@ -9,6 +9,14 @@ on:
       - 'app/**'
       - 'ci/apply-combo-fever-build.py'
       - '.github/workflows/android.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'version.properties'
+      - 'app/**'
+      - 'ci/apply-combo-fever-build.py'
+      - '.github/workflows/android.yml'
   workflow_dispatch:
 
 permissions:
@@ -83,8 +91,8 @@ jobs:
             signing-certificate.txt
           if-no-files-found: error
 
-      - name: Record successful build run
-        if: success()
+      - name: Record successful push build run
+        if: success() && github.event_name == 'push'
         shell: bash
         run: |
           set -euo pipefail

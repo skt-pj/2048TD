@@ -1,8 +1,10 @@
 package com.sktpj.td2048
 
 internal data class ComboFeverSnapshot(
+    /** Number of merges resolved by the most recent successful swipe. */
     val combo: Int = 0,
-    val comboRemainingSeconds: Float = 0f,
+    /** Monotonic event id so the UI animates once per successful swipe. */
+    val comboEventId: Int = 0,
     val feverGaugeTiles: Int = 0,
     val feverRemainingSeconds: Float = 0f,
     val feverCount: Int = 0,
@@ -19,15 +21,10 @@ internal data class ComboFeverSnapshot(
 }
 
 internal object ComboFeverRules {
+    // Tsum Tsum-style gauge: 29 cleared pieces fills FEVER. A 2048 merge consumes two tiles,
+    // so each merge contributes two processed tiles. This is intentionally not a time-combo rule.
     const val FEVER_TARGET_TILES = 29
     const val FEVER_DURATION_SECONDS = 11f
-
-    fun comboWindowSeconds(combo: Int): Float = when {
-        combo <= 50 -> 3f
-        combo <= 100 -> 2f
-        combo <= 500 -> 1f
-        else -> 0.5f
-    }
 
     fun processedTilesForMergeCount(mergeCount: Int): Int =
         mergeCount.coerceAtLeast(0) * 2
@@ -35,14 +32,14 @@ internal object ComboFeverRules {
 
 internal class ComboFeverController {
     private var combo = 0
-    private var comboRemainingSeconds = 0f
+    private var comboEventId = 0
     private var feverGaugeTiles = 0
     private var feverRemainingSeconds = 0f
     private var feverCount = 0
 
     fun snapshot(): ComboFeverSnapshot = ComboFeverSnapshot(
         combo = combo,
-        comboRemainingSeconds = comboRemainingSeconds,
+        comboEventId = comboEventId,
         feverGaugeTiles = feverGaugeTiles,
         feverRemainingSeconds = feverRemainingSeconds,
         feverCount = feverCount,
@@ -50,22 +47,25 @@ internal class ComboFeverController {
 
     fun reset() {
         combo = 0
-        comboRemainingSeconds = 0f
+        comboEventId = 0
         feverGaugeTiles = 0
         feverRemainingSeconds = 0f
         feverCount = 0
     }
 
+    /**
+     * COMBO follows the Puzzle & Dragons-style result model: one player gesture resolves to N
+     * simultaneous merge groups, therefore N is the combo count for that move. There is no
+     * cross-move timeout and no pressure to swipe before a timer expires.
+     */
     fun onMerge(mergeCount: Int) {
         if (mergeCount <= 0) return
 
-        combo = if (combo <= 0) 1 else combo + 1
+        combo = mergeCount
+        comboEventId += 1
 
-        if (feverRemainingSeconds > 0f) {
-            return
-        }
+        if (feverRemainingSeconds > 0f) return
 
-        comboRemainingSeconds = ComboFeverRules.comboWindowSeconds(combo)
         feverGaugeTiles = (
             feverGaugeTiles + ComboFeverRules.processedTilesForMergeCount(mergeCount)
         ).coerceAtMost(ComboFeverRules.FEVER_TARGET_TILES)
@@ -78,24 +78,11 @@ internal class ComboFeverController {
 
     fun tick(deltaSeconds: Float) {
         val delta = deltaSeconds.coerceAtLeast(0f)
-        if (delta <= 0f) return
+        if (delta <= 0f || feverRemainingSeconds <= 0f) return
 
-        if (feverRemainingSeconds > 0f) {
-            feverRemainingSeconds = (feverRemainingSeconds - delta).coerceAtLeast(0f)
-            if (feverRemainingSeconds <= 0f) {
-                feverGaugeTiles = 0
-                if (combo > 0) {
-                    comboRemainingSeconds = ComboFeverRules.comboWindowSeconds(combo)
-                }
-            }
-            return
-        }
-
-        if (combo > 0) {
-            comboRemainingSeconds = (comboRemainingSeconds - delta).coerceAtLeast(0f)
-            if (comboRemainingSeconds <= 0f) {
-                combo = 0
-            }
+        feverRemainingSeconds = (feverRemainingSeconds - delta).coerceAtLeast(0f)
+        if (feverRemainingSeconds <= 0f) {
+            feverGaugeTiles = 0
         }
     }
 }

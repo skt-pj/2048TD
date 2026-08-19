@@ -12,6 +12,7 @@ on:
       - 'ci/apply-vector-effects-build.py'
       - 'ci/apply-commercial-vfx-build.py'
       - 'ci/apply-pad-combo-fever-polish.py'
+      - 'ci/apply-particle-library-vfx.py'
       - '.github/workflows/android.yml'
   pull_request:
     branches:
@@ -23,6 +24,7 @@ on:
       - 'ci/apply-vector-effects-build.py'
       - 'ci/apply-commercial-vfx-build.py'
       - 'ci/apply-pad-combo-fever-polish.py'
+      - 'ci/apply-particle-library-vfx.py'
       - '.github/workflows/android.yml'
   workflow_dispatch:
 
@@ -58,6 +60,9 @@ jobs:
 
       - name: Apply PAD-style COMBO and FEVER polish
         run: python3 ci/apply-pad-combo-fever-polish.py
+
+      - name: Apply ParticleEmitter battlefield VFX
+        run: python3 ci/apply-particle-library-vfx.py
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5

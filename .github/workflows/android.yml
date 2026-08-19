@@ -14,6 +14,7 @@ on:
       - 'ci/apply-pad-combo-fever-polish.py'
       - 'ci/apply-particle-library-vfx.py'
       - 'ci/apply-fever-presence-vfx.py'
+      - 'ci/apply-tsum-ui-metrics.py'
       - '.github/workflows/android.yml'
   pull_request:
     branches:
@@ -27,6 +28,7 @@ on:
       - 'ci/apply-pad-combo-fever-polish.py'
       - 'ci/apply-particle-library-vfx.py'
       - 'ci/apply-fever-presence-vfx.py'
+      - 'ci/apply-tsum-ui-metrics.py'
       - '.github/workflows/android.yml'
   workflow_dispatch:
 
@@ -68,6 +70,9 @@ jobs:
 
       - name: Apply persistent FEVER battlefield presentation
         run: python3 ci/apply-fever-presence-vfx.py
+
+      - name: Apply Tsum-referenced COMBO and FEVER metrics
+        run: python3 ci/apply-tsum-ui-metrics.py
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5

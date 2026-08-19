@@ -9,17 +9,10 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -38,9 +31,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.delay
 import nl.dionsegijn.konfetti.compose.KonfettiView
 import nl.dionsegijn.konfetti.core.Party
 import nl.dionsegijn.konfetti.core.Position
@@ -50,13 +41,11 @@ import nl.dionsegijn.konfetti.core.models.Shape
 import nl.dionsegijn.konfetti.core.models.Size as ParticleSize
 import java.util.concurrent.TimeUnit
 import kotlin.math.PI
-import kotlin.math.ceil
 import kotlin.math.sin
 
 private val FeverCyan = Color(0xFF00F5FF)
 private val FeverPink = Color(0xFFFF35D3)
 private val FeverWhite = Color(0xFFF7FCFF)
-private val FeverTrack = Color(0xC0121A20)
 private val FeverDeep = Color(0xFF100619)
 
 private val FeverParticleCyan = 0xFF45F7FF.toInt()
@@ -64,19 +53,15 @@ private val FeverParticlePink = 0xFFFF48D8.toInt()
 private val FeverParticleWhite = 0xFFF8FDFF.toInt()
 
 /**
- * FEVER presentation is intentionally confined to the upper 54% of the screen. The 2048 board
- * remains a clean input surface while the battlefield visibly changes state for the full FEVER.
+ * Global FEVER atmosphere only. The reference-sized COMBO and FEVER meter are mounted inside the
+ * battlefield itself by TsumReferenceBattleHud so their positions are stable and never reach the
+ * 2048 input board.
  */
 @Composable
 internal fun ComboFeverOverlay(
     state: ComboFeverSnapshot,
     simpleEffects: Boolean,
 ) {
-    var seenComboEventId by remember { mutableIntStateOf(state.comboEventId) }
-    var displayedCombo by remember { mutableIntStateOf(0) }
-    val comboAlpha = remember { Animatable(0f) }
-    val comboScale = remember { Animatable(1f) }
-
     var seenFeverCount by remember { mutableIntStateOf(state.feverCount) }
     val feverIntro = remember { Animatable(1f) }
     val feverOutro = remember { Animatable(0f) }
@@ -100,33 +85,6 @@ internal fun ComboFeverOverlay(
         ),
         label = "fever-energy-sweep",
     )
-
-    LaunchedEffect(state.comboEventId) {
-        if (state.comboEventId <= seenComboEventId) return@LaunchedEffect
-        seenComboEventId = state.comboEventId
-        val target = state.combo.coerceAtLeast(1)
-
-        if (simpleEffects) {
-            displayedCombo = target
-            comboScale.snapTo(1f)
-            comboAlpha.snapTo(1f)
-            delay(420)
-            comboAlpha.animateTo(0f, tween(140))
-        } else {
-            for (count in 1..target) {
-                displayedCombo = count
-                comboAlpha.snapTo(1f)
-                comboScale.snapTo(0.90f)
-                comboScale.animateTo(
-                    targetValue = 1f,
-                    animationSpec = tween(durationMillis = 95, easing = FastOutSlowInEasing),
-                )
-                if (count < target) delay(55)
-            }
-            delay(if (target >= 4) 430 else 330)
-            comboAlpha.animateTo(0f, tween(170))
-        }
-    }
 
     LaunchedEffect(state.feverCount) {
         when {
@@ -166,8 +124,6 @@ internal fun ComboFeverOverlay(
     } else {
         0f
     }
-    val tenths = ceil(state.feverRemainingSeconds * 10f).toInt().coerceAtLeast(0)
-    val remainingLabel = "${tenths / 10}.${tenths % 10}s"
 
     Box(modifier = Modifier.fillMaxSize()) {
         Box(
@@ -185,8 +141,6 @@ internal fun ComboFeverOverlay(
                     }
 
                     if (state.feverActive) {
-                        // Persistent state change: the battlefield keeps a violet/pink energy field for
-                        // the entire FEVER instead of returning to the normal dark background.
                         drawRect(
                             brush = Brush.radialGradient(
                                 colors = listOf(
@@ -210,7 +164,6 @@ internal fun ComboFeverOverlay(
                             ),
                         )
 
-                        // Moving energy band: continuous motion makes FEVER readable even in peripheral vision.
                         if (!simpleEffects) {
                             val sweepX = size.width * (sweepPhase * 1.30f - 0.15f)
                             drawRect(
@@ -230,7 +183,8 @@ internal fun ComboFeverOverlay(
                             )
                         }
 
-                        val edgeAlpha = (0.42f + 0.30f * ambientPulse + 0.22f * endingSoon).coerceAtMost(0.94f)
+                        val edgeAlpha = (0.42f + 0.30f * ambientPulse + 0.22f * endingSoon)
+                            .coerceAtMost(0.94f)
                         drawRect(
                             FeverPink.copy(alpha = edgeAlpha),
                             topLeft = Offset.Zero,
@@ -305,84 +259,6 @@ internal fun ComboFeverOverlay(
                 }
             }
 
-            // Persistent FEVER instrument: active state always shows remaining time, not just a small label.
-            Column(
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 60.dp)
-                    .width(if (state.feverActive) 208.dp else 176.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text(
-                    text = if (state.feverActive) "FEVER  $remainingLabel" else "FEVER",
-                    color = if (state.feverActive) FeverWhite else FeverCyan.copy(alpha = 0.82f),
-                    fontSize = if (state.feverActive) 11.sp else 8.sp,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = if (state.feverActive) 1.6.sp else 1.3.sp,
-                    modifier = if (state.feverActive) {
-                        Modifier.graphicsLayer {
-                            alpha = if (simpleEffects) 1f else 0.82f + 0.18f * ambientPulse
-                            scaleX = if (endingSoon > 0f && !simpleEffects) 1f + 0.025f * ambientPulse else 1f
-                            scaleY = scaleX
-                        }
-                    } else {
-                        Modifier
-                    },
-                )
-                Box(
-                    modifier = Modifier
-                        .padding(top = 4.dp)
-                        .fillMaxWidth()
-                        .height(if (state.feverActive) 7.dp else 5.dp)
-                        .background(FeverTrack, RoundedCornerShape(4.dp)),
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(state.feverGaugeRatio)
-                            .fillMaxHeight()
-                            .background(
-                                if (state.feverActive) {
-                                    Brush.horizontalGradient(listOf(FeverPink, FeverWhite, FeverCyan))
-                                } else {
-                                    Brush.horizontalGradient(
-                                        listOf(FeverCyan.copy(alpha = 0.72f), FeverCyan),
-                                    )
-                                },
-                                RoundedCornerShape(4.dp),
-                            ),
-                    )
-                }
-            }
-
-            if (comboAlpha.value > 0.001f && displayedCombo > 0) {
-                Row(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 16.dp)
-                        .graphicsLayer {
-                            alpha = comboAlpha.value
-                            scaleX = comboScale.value
-                            scaleY = comboScale.value
-                        },
-                    verticalAlignment = Alignment.Bottom,
-                ) {
-                    Text(
-                        text = displayedCombo.toString(),
-                        color = if (displayedCombo >= 4) FeverPink else FeverWhite,
-                        fontSize = if (displayedCombo >= 4) 34.sp else 30.sp,
-                        fontWeight = FontWeight.Black,
-                    )
-                    Text(
-                        text = " COMBO",
-                        modifier = Modifier.padding(bottom = 4.dp),
-                        color = FeverCyan,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = 0.8.sp,
-                    )
-                }
-            }
-
             if (introWave > 0.01f) {
                 Text(
                     text = "FEVER",
@@ -394,7 +270,7 @@ internal fun ComboFeverOverlay(
                             scaleY = 0.84f + 0.30f * introWave
                         },
                     color = FeverWhite,
-                    fontSize = if (simpleEffects) 33.sp else 40.sp,
+                    fontSize = if (simpleEffects) 46.sp else 50.sp,
                     fontWeight = FontWeight.Black,
                     letterSpacing = 4.sp,
                 )

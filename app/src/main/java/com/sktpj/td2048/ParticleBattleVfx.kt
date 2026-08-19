@@ -1,186 +1,156 @@
 package com.sktpj.td2048
 
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.DpOffset
-import androidx.compose.ui.unit.DpSize
-import androidx.compose.ui.unit.dp
-import dev.piotrprus.particleemitter.CanvasEmitterConfig
-import dev.piotrprus.particleemitter.CanvasParticleEmitter
-import dev.piotrprus.particleemitter.ParticleShape
+import nl.dionsegijn.konfetti.compose.KonfettiView
+import nl.dionsegijn.konfetti.core.Party
+import nl.dionsegijn.konfetti.core.Position
+import nl.dionsegijn.konfetti.core.Rotation
+import nl.dionsegijn.konfetti.core.emitter.Emitter
+import nl.dionsegijn.konfetti.core.models.Shape
+import nl.dionsegijn.konfetti.core.models.Size
+import java.util.concurrent.TimeUnit
 
-private val ParticleWhite = Color(0xFFF8FDFF)
-private val ParticleCyan = Color(0xFF45F7FF)
-private val ParticleBlue = Color(0xFF5D86FF)
-private val ParticleViolet = Color(0xFFB56CFF)
-private val ParticleOrange = Color(0xFFFF8A2A)
-private val ParticlePink = Color(0xFFFF48D8)
-private val ParticleRed = Color(0xFFFF4B63)
-private val ParticleGold = Color(0xFFFFD65A)
+private const val ParticleWhite = 0xFFF8FDFF.toInt()
+private const val ParticleCyan = 0xFF45F7FF.toInt()
+private const val ParticleBlue = 0xFF5D86FF.toInt()
+private const val ParticleViolet = 0xFFB56CFF.toInt()
+private const val ParticleOrange = 0xFFFF8A2A.toInt()
+private const val ParticlePink = 0xFFFF48D8.toInt()
+private const val ParticleRed = 0xFFFF4B63.toInt()
+private const val ParticleGold = 0xFFFFD65A.toInt()
 
+/**
+ * Third-party particle layer for battlefield feedback only.
+ * The 2048 input board intentionally never hosts this composable.
+ */
 @Composable
 internal fun BattleParticleVfxLayer(
     snapshot: GameSnapshot,
     simpleEffects: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    BoxWithConstraints(modifier = modifier) {
-        val maxHitEvents = if (simpleEffects) 3 else 8
-        val aliveEvents = snapshot.vfxEvents.filter { event ->
-            val age = snapshot.elapsedSeconds - event.createdAtSeconds
-            age in 0f..0.90f
-        }
-        val priorityEvents = aliveEvents.filter { it.type != VfxEventType.HIT }
-        val hitEvents = aliveEvents.filter { it.type == VfxEventType.HIT }.takeLast(maxHitEvents)
-        val visibleEvents = (priorityEvents + hitEvents)
-            .distinctBy { it.id }
-            .sortedBy { it.createdAtSeconds }
+    val aliveEvents = snapshot.vfxEvents.filter { event ->
+        val age = snapshot.elapsedSeconds - event.createdAtSeconds
+        age in 0f..0.90f
+    }
 
-        visibleEvents.forEach { event ->
-            key(event.id) {
-                val age = (snapshot.elapsedSeconds - event.createdAtSeconds).coerceAtLeast(0f)
-                val center = DpOffset(
-                    x = maxWidth * event.x.coerceIn(0f, 1f),
-                    y = maxHeight * event.y.coerceIn(0f, 1f),
-                )
-                EventParticleEmitter(
-                    event = event,
-                    ageSeconds = age,
-                    center = center,
-                    simpleEffects = simpleEffects,
-                    modifier = Modifier.matchParentSize(),
-                )
-            }
+    // Keep simultaneous full-screen particle canvases bounded. Kills take priority over routine hits.
+    val priorityLimit = if (simpleEffects) 1 else 2
+    val hitLimit = if (simpleEffects) 2 else 3
+    val priorityEvents = aliveEvents
+        .filter { it.type != VfxEventType.HIT }
+        .takeLast(priorityLimit)
+    val hitEvents = aliveEvents
+        .filter { it.type == VfxEventType.HIT }
+        .takeLast(hitLimit)
+    val visibleEvents = (priorityEvents + hitEvents)
+        .distinctBy { it.id }
+        .sortedBy { it.createdAtSeconds }
+
+    visibleEvents.forEach { event ->
+        key(event.id) {
+            KonfettiView(
+                modifier = modifier,
+                parties = battleParties(event, simpleEffects),
+            )
         }
     }
 }
 
-@Composable
-private fun EventParticleEmitter(
-    event: VfxEvent,
-    ageSeconds: Float,
-    center: DpOffset,
-    simpleEffects: Boolean,
-    modifier: Modifier,
-) {
-    val emitWindowSeconds = when (event.type) {
-        VfxEventType.HIT -> 0.11f
-        VfxEventType.KILL -> 0.18f
-        VfxEventType.BOSS_KILL -> 0.28f
-    }
-    val particleRate = if (ageSeconds <= emitWindowSeconds) {
-        when (event.type) {
-            VfxEventType.HIT -> if (simpleEffects) 70 else 150
-            VfxEventType.KILL -> if (simpleEffects) 120 else 260
-            VfxEventType.BOSS_KILL -> if (simpleEffects) 220 else 520
-        }
-    } else {
-        0
-    }
-
-    val colors = particleColors(event)
-    val regionShape = when (event.type) {
-        VfxEventType.HIT -> CanvasEmitterConfig.Shape.POINT
-        VfxEventType.KILL,
-        VfxEventType.BOSS_KILL -> CanvasEmitterConfig.Shape.SOLID_OVAL
-    }
-    val regionSize = when (event.type) {
-        VfxEventType.HIT -> DpSize(0.dp, 0.dp)
-        VfxEventType.KILL -> DpSize(18.dp, 18.dp)
-        VfxEventType.BOSS_KILL -> DpSize(48.dp, 48.dp)
-    }
-    val particleSizes = when (event.type) {
-        VfxEventType.HIT -> listOf(DpSize(2.dp, 2.dp), DpSize(3.dp, 3.dp), DpSize(4.dp, 4.dp))
-        VfxEventType.KILL -> listOf(DpSize(3.dp, 3.dp), DpSize(5.dp, 5.dp), DpSize(7.dp, 7.dp))
-        VfxEventType.BOSS_KILL -> listOf(DpSize(4.dp, 4.dp), DpSize(7.dp, 7.dp), DpSize(10.dp, 10.dp))
-    }
-    val lifespan = when (event.type) {
-        VfxEventType.HIT -> 220..390
-        VfxEventType.KILL -> 420..680
-        VfxEventType.BOSS_KILL -> 620..900
-    }
-    val force = when (event.type) {
-        VfxEventType.HIT -> 70..145
-        VfxEventType.KILL -> 120..240
-        VfxEventType.BOSS_KILL -> 170..330
-    }
-    val gravity = when (event.type) {
-        VfxEventType.HIT -> 25f
-        VfxEventType.KILL -> 70f
-        VfxEventType.BOSS_KILL -> 95f
-    }
-
-    CanvasParticleEmitter(
-        modifier = modifier,
-        config = CanvasEmitterConfig(
-            particlePerSecond = particleRate,
-            emitterCenter = center,
-            startRegionShape = regionShape,
-            startRegionSize = regionSize,
-            particleShapes = listOf(ParticleShape.Circle),
-            lifespanRange = lifespan,
-            fadeOutTime = (lifespan.first / 2)..lifespan.last,
-            scaleTime = lifespan,
-            colors = colors,
-            particleSizes = particleSizes,
-            spread = -180..180,
-            blendMode = BlendMode.Screen,
-            initialForce = force,
-            rotationRange = -180..180,
-            startScaleRange = 1..2,
-            targetScaleRange = 0..1,
-            gravityStrength = gravity,
-            gravityAngle = 0,
-        ),
+private fun battleParties(event: VfxEvent, simpleEffects: Boolean): List<Party> {
+    val position = Position.Relative(
+        x = event.x.coerceIn(0f, 1f).toDouble(),
+        y = event.y.coerceIn(0f, 1f).toDouble(),
     )
+    val colors = particleColors(event)
 
-    if (event.type == VfxEventType.BOSS_KILL && !simpleEffects) {
-        BossRingParticleEmitter(
-            ageSeconds = ageSeconds,
-            center = center,
-            modifier = modifier,
+    val primary = when (event.type) {
+        VfxEventType.HIT -> Party(
+            angle = 0,
+            spread = 360,
+            speed = 8f,
+            maxSpeed = if (simpleEffects) 13f else 18f,
+            damping = 0.84f,
+            size = if (simpleEffects) {
+                listOf(Size(2, mass = 3f), Size(3, mass = 4f))
+            } else {
+                listOf(Size(2, mass = 3f), Size(3, mass = 4f), Size(4, mass = 5f))
+            },
+            colors = colors,
+            shapes = listOf(Shape.Circle),
+            timeToLive = if (simpleEffects) 190L else 260L,
+            fadeOutEnabled = true,
+            position = position,
+            rotation = Rotation.disabled(),
+            emitter = Emitter(70, TimeUnit.MILLISECONDS).max(if (simpleEffects) 5 else 9),
+        )
+
+        VfxEventType.KILL -> Party(
+            angle = 0,
+            spread = 360,
+            speed = 12f,
+            maxSpeed = if (simpleEffects) 21f else 30f,
+            damping = 0.87f,
+            size = if (simpleEffects) {
+                listOf(Size(3, mass = 4f), Size(4, mass = 5f))
+            } else {
+                listOf(Size(2, mass = 3f), Size(4, mass = 5f), Size(6, mass = 6f))
+            },
+            colors = colors,
+            shapes = if (simpleEffects) listOf(Shape.Circle) else listOf(Shape.Circle, Shape.Square),
+            timeToLive = if (simpleEffects) 360L else 520L,
+            fadeOutEnabled = true,
+            position = position,
+            rotation = if (simpleEffects) Rotation.disabled() else Rotation.enabled(),
+            emitter = Emitter(110, TimeUnit.MILLISECONDS).max(if (simpleEffects) 10 else 20),
+        )
+
+        VfxEventType.BOSS_KILL -> Party(
+            angle = 0,
+            spread = 360,
+            speed = 18f,
+            maxSpeed = if (simpleEffects) 31f else 42f,
+            damping = 0.89f,
+            size = if (simpleEffects) {
+                listOf(Size(3, mass = 4f), Size(5, mass = 6f))
+            } else {
+                listOf(Size(2, mass = 3f), Size(4, mass = 5f), Size(7, mass = 7f))
+            },
+            colors = colors,
+            shapes = if (simpleEffects) listOf(Shape.Circle) else listOf(Shape.Circle, Shape.Square),
+            timeToLive = if (simpleEffects) 520L else 760L,
+            fadeOutEnabled = true,
+            position = position,
+            rotation = if (simpleEffects) Rotation.disabled() else Rotation.enabled(),
+            emitter = Emitter(150, TimeUnit.MILLISECONDS).max(if (simpleEffects) 18 else 36),
         )
     }
-}
 
-@Composable
-private fun BossRingParticleEmitter(
-    ageSeconds: Float,
-    center: DpOffset,
-    modifier: Modifier,
-) {
-    val rate = if (ageSeconds <= 0.22f) 260 else 0
-    CanvasParticleEmitter(
-        modifier = modifier,
-        config = CanvasEmitterConfig(
-            particlePerSecond = rate,
-            emitterCenter = center,
-            startRegionShape = CanvasEmitterConfig.Shape.OVAL,
-            startRegionSize = DpSize(62.dp, 62.dp),
-            particleShapes = listOf(ParticleShape.Circle),
-            lifespanRange = 520..850,
-            fadeOutTime = 320..780,
-            scaleTime = 520..850,
-            colors = listOf(ParticleGold, ParticleWhite, ParticleOrange),
-            particleSizes = listOf(DpSize(3.dp, 3.dp), DpSize(5.dp, 5.dp), DpSize(8.dp, 8.dp)),
-            spread = -180..180,
-            blendMode = BlendMode.Screen,
-            initialForce = 100..220,
-            rotationRange = -180..180,
-            startScaleRange = 1..2,
-            targetScaleRange = 0..1,
-            gravityStrength = 40f,
-            gravityAngle = 0,
-            hideInStartRegion = true,
-        ),
+    if (event.type != VfxEventType.BOSS_KILL || simpleEffects) return listOf(primary)
+
+    // A delayed second burst gives the boss finish a readable two-beat impact without touching the board.
+    val secondary = Party(
+        angle = 0,
+        spread = 360,
+        speed = 7f,
+        maxSpeed = 20f,
+        damping = 0.91f,
+        size = listOf(Size(2, mass = 3f), Size(3, mass = 4f), Size(5, mass = 5f)),
+        colors = listOf(ParticleGold, ParticleWhite, ParticleOrange),
+        shapes = listOf(Shape.Circle),
+        timeToLive = 680L,
+        fadeOutEnabled = true,
+        position = position,
+        delay = 85,
+        rotation = Rotation.disabled(),
+        emitter = Emitter(120, TimeUnit.MILLISECONDS).max(24),
     )
+    return listOf(primary, secondary)
 }
 
-private fun particleColors(event: VfxEvent): List<Color> {
+private fun particleColors(event: VfxEvent): List<Int> {
     val weaponColor = when (event.weaponType) {
         WeaponType.NORMAL,
         WeaponType.RAPID -> ParticleCyan

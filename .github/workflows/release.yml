@@ -95,17 +95,6 @@ jobs:
           keytool -printcert -jarfile "$APK_TARGET" | tee signing-certificate.txt
           echo "apk=$APK_TARGET" >> "$GITHUB_OUTPUT"
 
-      - name: Upload release artifact
-        if: steps.release_check.outputs.should_release == 'true'
-        uses: actions/upload-artifact@v7
-        with:
-          name: 2048TD-v${{ steps.version.outputs.name }}-release
-          path: |
-            ${{ steps.files.outputs.apk }}
-            ${{ steps.files.outputs.apk }}.sha256
-            signing-certificate.txt
-          if-no-files-found: error
-
       - name: Create GitHub Release
         if: steps.release_check.outputs.should_release == 'true'
         shell: bash

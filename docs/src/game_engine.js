@@ -1,5 +1,6 @@
 import { GRID_SIZE, canMove, initialBoard, moveWithoutSpawn, spawnRandomTile } from "./game_rules.js";
 import { WeaponType, canAttack, columnLevel, columnPower, fireIntervalSeconds, projectileSpeed, selectTarget, weaponType } from "./column_combat_rules.js";
+import { newComboFeverState, registerMerges, tickFever } from "./combo_fever.js";
 
 const MAX_HP = 1931;
 const INITIAL_ENEMY_HP = 24;
@@ -9,7 +10,8 @@ const BOSS_EVERY_WAVES = 5;
 const BOSS_WARNING_SECONDS = 5;
 const BOSS_SPEED_RATIO = 0.55;
 const BOSS_HP_RATIO = 12;
-const SAVE_SCHEMA = 1;
+const SAVE_SCHEMA = 2;
+const VFX_LIFETIME_SECONDS = 0.90;
 
 export class GameEngine {
   constructor(random = Math.random) {
@@ -20,6 +22,7 @@ export class GameEngine {
   reset() {
     this.enemyId = 1;
     this.projectileId = 1;
+    this.vfxEventId = 1;
     this.spawnTimer = 0;
     this.enemiesSpawnedThisWave = 0;
     this.lastBossWave = 0;
@@ -37,7 +40,10 @@ export class GameEngine {
       bossWarning: null,
       gameOverReason: null,
       mergeBurst: 0,
+      mergePeak: 0,
       elapsedSeconds: 0,
+      comboFever: newComboFeverState(),
+      vfxEvents: [],
     };
     return this.snapshot();
   }
@@ -51,6 +57,14 @@ export class GameEngine {
     const state = saved.state ?? saved;
     if (!Array.isArray(state.board) || state.board.length !== 16) return false;
     if (!Array.isArray(state.enemies) || !Array.isArray(state.projectiles)) return false;
+    const restoredFever = newComboFeverState();
+    if (state.comboFever && typeof state.comboFever === "object") {
+      restoredFever.combo = Math.max(0, Math.trunc(Number(state.comboFever.combo) || 0));
+      restoredFever.comboEventId = Math.max(0, Math.trunc(Number(state.comboFever.comboEventId) || 0));
+      restoredFever.feverGaugeTiles = Math.max(0, Math.min(29, Math.trunc(Number(state.comboFever.feverGaugeTiles) || 0)));
+      restoredFever.feverRemainingSeconds = Math.max(0, Math.min(11, Number(state.comboFever.feverRemainingSeconds) || 0));
+      restoredFever.feverCount = Math.max(0, Math.trunc(Number(state.comboFever.feverCount) || 0));
+    }
     this.state = {
       schema: SAVE_SCHEMA,
       board: state.board.map((v) => Number(v) || 0),
@@ -64,11 +78,15 @@ export class GameEngine {
       bossWarning: state.bossWarning ? { remainingSeconds: Math.max(0, Number(state.bossWarning.remainingSeconds) || 0) } : null,
       gameOverReason: state.gameOverReason === "BOARD_STUCK" || state.gameOverReason === "HP_ZERO" ? state.gameOverReason : null,
       mergeBurst: 0,
+      mergePeak: 0,
       elapsedSeconds: Math.max(0, Number(state.elapsedSeconds) || 0),
+      comboFever: restoredFever,
+      vfxEvents: Array.isArray(state.vfxEvents) ? state.vfxEvents.map((e) => ({ ...e })) : [],
     };
     while (this.state.cooldowns.length < 4) this.state.cooldowns.push(0);
-    this.enemyId = Math.max(1, ...this.state.enemies.map((e) => Number(e.id) || 0)) + 1;
-    this.projectileId = Math.max(1, ...this.state.projectiles.map((p) => Number(p.id) || 0)) + 1;
+    this.enemyId = Math.max(0, ...this.state.enemies.map((e) => Number(e.id) || 0)) + 1;
+    this.projectileId = Math.max(0, ...this.state.projectiles.map((p) => Number(p.id) || 0)) + 1;
+    this.vfxEventId = Math.max(0, ...this.state.vfxEvents.map((e) => Number(e.id) || 0)) + 1;
     this.spawnTimer = Math.max(0, Number(saved.spawnTimer) || 0);
     this.enemiesSpawnedThisWave = Math.max(0, Math.min(ENEMIES_PER_WAVE - 1, Number(saved.enemiesSpawnedThisWave) || 0));
     this.lastBossWave = Math.max(0, Number(saved.lastBossWave) || 0);
@@ -88,22 +106,34 @@ export class GameEngine {
   }
 
   move(direction) {
-    if (this.state.gameOverReason) return { changed: false, scoreChanged: false, gameOver: true };
+    if (this.state.gameOverReason) return { changed: false, scoreChanged: false, gameOver: true, mergeCount: 0 };
     const result = moveWithoutSpawn(this.state.board, direction);
-    if (!result.moved) return { changed: false, scoreChanged: false, gameOver: false };
+    if (!result.moved) return { changed: false, scoreChanged: false, gameOver: false, mergeCount: 0 };
     const board = spawnRandomTile(result.board, this.random);
     const gained = result.createdValues.reduce((sum, value) => sum + value, 0);
     this.state.board = board;
     this.state.score += gained;
     this.state.mergeBurst = gained;
+    this.state.mergePeak = result.createdValues.length ? Math.max(...result.createdValues) : 0;
+    if (result.createdValues.length) registerMerges(this.state.comboFever, result.createdValues.length);
     if (!canMove(board)) this.state.gameOverReason = "BOARD_STUCK";
-    return { changed: true, scoreChanged: gained > 0, gameOver: Boolean(this.state.gameOverReason) };
+    return {
+      changed: true,
+      scoreChanged: gained > 0,
+      gameOver: Boolean(this.state.gameOverReason),
+      mergeCount: result.createdValues.length,
+      createdValues: result.createdValues.slice(),
+    };
   }
 
   tick(deltaSeconds) {
     if (this.state.gameOverReason) return { scoreChanged: false, waveChanged: false, gameOver: true };
     const delta = Math.max(0, Math.min(0.05, deltaSeconds));
     this.state.elapsedSeconds += delta;
+    tickFever(this.state.comboFever, delta);
+    this.state.vfxEvents = this.state.vfxEvents.filter(
+      (event) => this.state.elapsedSeconds - event.createdAtSeconds <= VFX_LIFETIME_SECONDS,
+    );
     let scoreChanged = false;
     let waveChanged = false;
 
@@ -211,6 +241,7 @@ export class GameEngine {
         const damage = damageByEnemyId.get(enemy.id) ?? 0;
         if (damage <= 0) { survivors.push(enemy); continue; }
         const nextHp = enemy.hp - damage;
+        this.pushVfxEvent(enemy, nextHp <= 0 ? (enemy.enemyType === "BOSS" ? "BOSS_KILL" : "KILL") : "HIT", damage);
         if (nextHp <= 0) {
           this.state.score += Math.trunc(enemy.maxHp);
           scoreChanged = true;
@@ -220,6 +251,17 @@ export class GameEngine {
     }
 
     return { scoreChanged, waveChanged, gameOver: Boolean(this.state.gameOverReason) };
+  }
+
+  pushVfxEvent(enemy, type, damage) {
+    this.state.vfxEvents.push({
+      id: this.vfxEventId++,
+      type,
+      x: this.enemyX(enemy),
+      y: enemy.progress,
+      damage: Math.max(0, Math.trunc(damage)),
+      createdAtSeconds: this.state.elapsedSeconds,
+    });
   }
 
   createNormalEnemy(id, wave) {
@@ -238,3 +280,12 @@ export class GameEngine {
 }
 
 export const CURRENT_MAX_HP = MAX_HP;
+export const CURRENT_RULES = Object.freeze({
+  INITIAL_ENEMY_HP,
+  ENEMIES_PER_WAVE,
+  ENEMY_SPAWN_SECONDS,
+  BOSS_EVERY_WAVES,
+  BOSS_WARNING_SECONDS,
+  BOSS_SPEED_RATIO,
+  BOSS_HP_RATIO,
+});

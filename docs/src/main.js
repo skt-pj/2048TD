@@ -1,7 +1,9 @@
 import { GameEngine } from "./game_engine.js";
 import { PlayablesBridge } from "./playables.js";
 import { strings } from "./i18n.js";
-import { renderBattle, renderBoard, renderWeaponStrip } from "./renderer.js";
+import { renderBattle, renderBoard, renderComboFever, renderWeaponStrip } from "./renderer.js";
+import { isLandscapeViewport, screenDirectionToLogical } from "./orientation.js";
+import { feverActive } from "./combo_fever.js";
 
 const bridge = new PlayablesBridge();
 const engine = new GameEngine();
@@ -11,6 +13,11 @@ let raf = 0;
 let lastTime = 0;
 let text = strings("en-US");
 let gameOverReported = false;
+let lastComboEventId = 0;
+let lastFeverCount = 0;
+let wasFeverActive = false;
+let lastLandscape = null;
+let transitionTimer = 0;
 
 const $ = (id) => document.getElementById(id);
 const app = $("app");
@@ -18,13 +25,18 @@ const loading = $("loading");
 const canvas = $("battlefield");
 const boardEl = $("board");
 const gameOverEl = $("game-over");
+const comboHud = $("combo-hud");
+const feverTransition = $("fever-transition");
+
+function landscapeNow() {
+  return isLandscapeViewport(globalThis.innerWidth, globalThis.innerHeight);
+}
 
 function applyStrings() {
-  $("restart").textContent = text.restart;
+  $("restart").setAttribute("aria-label", text.restart);
   $("hp-label").textContent = text.hp;
   $("wave-label").textContent = text.wave;
   $("score-label").textContent = text.score;
-  $("total-hp-label").textContent = text.totalHp;
   $("hint").textContent = text.hint;
   $("game-over-title").textContent = text.gameOver;
   $("final-score-label").textContent = text.finalScore;
@@ -32,36 +44,86 @@ function applyStrings() {
   $("play-again").textContent = text.playAgain;
 }
 
+function showComboIfNeeded(state) {
+  const cf = state.comboFever;
+  if (cf.comboEventId <= lastComboEventId) return;
+  lastComboEventId = cf.comboEventId;
+  if (cf.combo <= 0) return;
+  $("combo-number").textContent = String(cf.combo);
+  comboHud.hidden = false;
+  comboHud.style.animation = "none";
+  void comboHud.offsetWidth;
+  comboHud.style.animation = "";
+}
+
+comboHud.addEventListener("animationend", () => { comboHud.hidden = true; });
+
+function showFeverTransition(label, ending = false) {
+  clearTimeout(transitionTimer);
+  feverTransition.textContent = label;
+  feverTransition.classList.toggle("end", ending);
+  feverTransition.hidden = false;
+  feverTransition.style.animation = "none";
+  void feverTransition.offsetWidth;
+  feverTransition.style.animation = "";
+  transitionTimer = setTimeout(() => { feverTransition.hidden = true; }, ending ? 520 : 760);
+}
+
+function handleFeverTransitions(state) {
+  const cf = state.comboFever;
+  const active = feverActive(cf);
+  if (cf.feverCount > lastFeverCount) {
+    lastFeverCount = cf.feverCount;
+    showFeverTransition("FEVER", false);
+  } else if (wasFeverActive && !active && cf.feverCount > 0) {
+    showFeverTransition("FEVER END", true);
+  }
+  wasFeverActive = active;
+}
+
 function render() {
   const state = engine.state;
-  $("hp-text").textContent = `${state.currentHp} / ${state.maxHp}`;
+  const landscape = landscapeNow();
+  if (landscape !== lastLandscape) {
+    lastLandscape = landscape;
+    app.classList.toggle("landscape-layout", landscape);
+  }
+
+  $("hp-text").textContent = `${state.currentHp}/${state.maxHp}`;
   $("wave").textContent = String(state.wave);
   $("score").textContent = String(state.score);
-  $("total-hp-text").textContent = `${state.currentHp} / ${state.maxHp}`;
   const hpRatio = Math.max(0, Math.min(1, state.currentHp / state.maxHp));
   $("hp-fill").style.width = `${hpRatio * 100}%`;
   $("hp-fill").classList.toggle("danger", hpRatio < .25);
-  renderBoard(boardEl, state.board);
+
+  renderBoard(boardEl, state.board, landscape);
   renderWeaponStrip($("weapon-strip"), state.board);
-  renderBattle(canvas, state);
+  renderBattle(canvas, state, landscape);
+  renderComboFever(app, state);
+  showComboIfNeeded(state);
+  handleFeverTransitions(state);
 
   if (state.bossWarning) {
     $("boss-warning").hidden = false;
     $("boss-warning").firstChild.textContent = `${text.bossWarning} `;
     $("boss-countdown").textContent = `${Math.max(0, state.bossWarning.remainingSeconds).toFixed(1)}s`;
-  } else $("boss-warning").hidden = true;
+  } else {
+    $("boss-warning").hidden = true;
+  }
 
   if (state.gameOverReason) {
     gameOverEl.hidden = false;
     $("game-over-reason").textContent = state.gameOverReason === "BOARD_STUCK" ? text.boardStuck : text.hpZero;
     $("final-score").textContent = String(state.score);
     $("best-score").textContent = String(Math.max(bestScore, state.score));
-  } else gameOverEl.hidden = true;
+  } else {
+    gameOverEl.hidden = true;
+  }
 }
 
 async function saveProgress() {
   bestScore = Math.max(bestScore, engine.state.score);
-  await bridge.save({ version: 1, bestScore, run: engine.serialize() });
+  await bridge.save({ version: 2, bestScore, run: engine.serialize() });
 }
 
 async function reportGameOver() {
@@ -90,17 +152,25 @@ function startLoop() {
   if (!paused) raf = requestAnimationFrame(loop);
 }
 
+function syncUiEventBaselines() {
+  lastComboEventId = engine.state.comboFever.comboEventId;
+  lastFeverCount = engine.state.comboFever.feverCount;
+  wasFeverActive = feverActive(engine.state.comboFever);
+}
+
 function newGame() {
   engine.reset();
   gameOverReported = false;
+  syncUiEventBaselines();
   render();
   saveProgress();
   boardEl.focus({ preventScroll: true });
 }
 
-function move(direction) {
+function moveScreenDirection(screenDirection) {
   if (paused || engine.state.gameOverReason) return;
-  const result = engine.move(direction);
+  const logicalDirection = screenDirectionToLogical(screenDirection, landscapeNow());
+  const result = engine.move(logicalDirection);
   if (!result.changed) return;
   render();
   saveProgress();
@@ -108,19 +178,21 @@ function move(direction) {
 }
 
 function installInput() {
-  const keyMap = { ArrowUp: "UP", ArrowDown: "DOWN", ArrowLeft: "LEFT", ArrowRight: "RIGHT", w: "UP", s: "DOWN", a: "LEFT", d: "RIGHT", W: "UP", S: "DOWN", A: "LEFT", D: "RIGHT" };
-  boardEl.addEventListener("keydown", (event) => {
+  const keyMap = {
+    ArrowUp: "UP", ArrowDown: "DOWN", ArrowLeft: "LEFT", ArrowRight: "RIGHT",
+    w: "UP", s: "DOWN", a: "LEFT", d: "RIGHT",
+    W: "UP", S: "DOWN", A: "LEFT", D: "RIGHT",
+  };
+  const handleKey = (event) => {
     const direction = keyMap[event.key];
     if (!direction) return;
     event.preventDefault();
-    move(direction);
-  });
+    moveScreenDirection(direction);
+  };
+  boardEl.addEventListener("keydown", handleKey);
   document.addEventListener("keydown", (event) => {
     if (document.activeElement === boardEl) return;
-    const direction = keyMap[event.key];
-    if (!direction) return;
-    event.preventDefault();
-    move(direction);
+    handleKey(event);
   });
 
   let start = null;
@@ -134,12 +206,14 @@ function installInput() {
     const dy = event.clientY - start.y;
     start = null;
     if (Math.hypot(dx, dy) < 24) return;
-    move(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "RIGHT" : "LEFT") : (dy > 0 ? "DOWN" : "UP"));
+    moveScreenDirection(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "RIGHT" : "LEFT") : (dy > 0 ? "DOWN" : "UP"));
   });
   boardEl.addEventListener("pointercancel", () => { start = null; });
 
   $("restart").addEventListener("click", newGame);
   $("play-again").addEventListener("click", newGame);
+  globalThis.addEventListener("resize", render, { passive: true });
+  globalThis.addEventListener("orientationchange", () => setTimeout(render, 60), { passive: true });
 }
 
 async function initialize() {
@@ -155,6 +229,7 @@ async function initialize() {
     engine.reset();
     gameOverReported = false;
   }
+  syncUiEventBaselines();
   installInput();
   bridge.installSystemHandlers({
     onPause: () => {
@@ -175,6 +250,7 @@ async function initialize() {
   startLoop();
 }
 
-initialize().catch(() => {
+initialize().catch((error) => {
+  console.error(error);
   loading.textContent = "Unable to start 2048TD";
 });

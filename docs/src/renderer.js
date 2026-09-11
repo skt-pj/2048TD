@@ -1,98 +1,270 @@
 import { GRID_SIZE } from "./game_rules.js";
 import { columnLevel, columnPower, weaponType, WeaponType } from "./column_combat_rules.js";
+import { feverActive, feverGaugeRatio } from "./combo_fever.js";
+import { displayIndexToLogicalIndex, logicalPointToScreen } from "./orientation.js";
 
 const COLORS = {
-  bg: "#0f141c", lane: "#25303d", defense: "#d39a4c", enemy: "#c8d3df", boss: "#e7984d",
-  hpBg: "#3a4554", hp: "#6bc47d", projectile: "#e9e0c9",
+  bg: "#020406",
+  panel: "#060a0f",
+  laneA: "#05090d",
+  laneB: "#03070a",
+  lane: "#17303a",
+  cyan: "#00f5ff",
+  pink: "#ff35d3",
+  lime: "#63ff8c",
+  amber: "#ffb020",
+  red: "#ff3b58",
+  white: "#f4fbff",
+  muted: "#a4b7c2",
 };
 
-export function renderBattle(canvas, state) {
+const WEAPON_COLORS = {
+  NORMAL: "#8994a4",
+  RAPID: "#58a8d0",
+  MACHINE_GUN: "#69bd89",
+  PIERCING: "#aa62ff",
+  EXPLOSIVE: "#ff7a18",
+  LASER: "#ff35d3",
+};
+
+function resizeCanvas(canvas) {
   const rect = canvas.getBoundingClientRect();
   const dpr = Math.min(2, globalThis.devicePixelRatio || 1);
   const width = Math.max(1, Math.round(rect.width * dpr));
   const height = Math.max(1, Math.round(rect.height * dpr));
-  if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width;
+    canvas.height = height;
+  }
   const ctx = canvas.getContext("2d");
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const w = rect.width, h = rect.height;
+  return { ctx, w: rect.width, h: rect.height };
+}
+
+function screenPoint(x, y, landscape, w, h) {
+  const p = logicalPointToScreen(x, y, landscape);
+  return { x: p.x * w, y: p.y * h };
+}
+
+export function renderBattle(canvas, state, landscape) {
+  const { ctx, w, h } = resizeCanvas(canvas);
+  const fever = feverActive(state.comboFever);
+  const phase = state.elapsedSeconds;
   ctx.clearRect(0, 0, w, h);
-  ctx.fillStyle = COLORS.bg; ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = fever ? "#100619" : COLORS.panel;
+  ctx.fillRect(0, 0, w, h);
 
-  for (let i = 0; i <= GRID_SIZE; i += 1) {
-    const x = i * w / GRID_SIZE;
-    ctx.strokeStyle = COLORS.lane; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
-  }
-  ctx.strokeStyle = state.bossWarning ? "#c47b36" : "#3a2d26";
-  ctx.lineWidth = state.bossWarning ? 5 : 2;
-  ctx.setLineDash(state.bossWarning ? [9, 8] : [5, 9]);
-  ctx.beginPath(); ctx.moveTo(w / 2, 0); ctx.lineTo(w / 2, h * .94); ctx.stroke(); ctx.setLineDash([]);
-
-  const defenseY = h * .955;
-  ctx.strokeStyle = COLORS.defense; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(0, defenseY); ctx.lineTo(w, defenseY); ctx.stroke();
-  ctx.font = "700 10px system-ui"; ctx.fillStyle = "#cfa45f"; ctx.fillText("DEFENSE LINE", 8, defenseY - 7);
+  drawLanes(ctx, w, h, landscape, fever, phase);
+  drawBossAxis(ctx, w, h, landscape, Boolean(state.bossWarning), fever, phase);
+  drawDefenseLine(ctx, w, h, landscape, fever, phase);
 
   for (let col = 0; col < GRID_SIZE; col += 1) {
-    const x = (col + .5) * w / GRID_SIZE;
+    const logical = { x: (col + 0.5) / GRID_SIZE, y: 0.955 };
+    const point = screenPoint(logical.x, logical.y, landscape, w, h);
     const type = weaponType(columnLevel(state.board, col));
-    drawTurret(ctx, x, defenseY - 2, type);
+    const ready = 1 - Math.min(1, state.cooldowns[col] / Math.max(0.01, ({ NORMAL:.90, RAPID:.62, MACHINE_GUN:.24, PIERCING:.72, EXPLOSIVE:.95, LASER:.78 })[type]));
+    drawTurret(ctx, point.x, point.y, type, landscape, ready, fever, phase);
   }
 
-  for (const enemy of state.enemies) {
-    const x = (enemy.enemyType === "BOSS" ? .5 : (enemy.lane + .5) / GRID_SIZE) * w;
-    const y = enemy.progress * h;
-    const r = enemy.enemyType === "BOSS" ? Math.max(19, w * .045) : Math.max(11, w * .025);
-    ctx.fillStyle = enemy.enemyType === "BOSS" ? COLORS.boss : COLORS.enemy;
-    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
-    const ratio = Math.max(0, enemy.hp / enemy.maxHp);
-    ctx.fillStyle = COLORS.hpBg; ctx.fillRect(x - r, y - r - 9, r * 2, 4);
-    ctx.fillStyle = COLORS.hp; ctx.fillRect(x - r, y - r - 9, r * 2 * ratio, 4);
-    if (enemy.enemyType === "BOSS") {
-      ctx.fillStyle = "#1d140d"; ctx.font = "900 10px system-ui"; ctx.textAlign = "center"; ctx.fillText("BOSS", x, y + 3); ctx.textAlign = "start";
-    }
+  for (const enemy of state.enemies) drawEnemy(ctx, enemy, landscape, w, h, fever, phase);
+  for (const projectile of state.projectiles) {
+    const point = screenPoint(projectile.x, projectile.y, landscape, w, h);
+    drawProjectile(ctx, point.x, point.y, projectile.weaponType, landscape, fever);
   }
+  for (const event of state.vfxEvents ?? []) drawImpact(ctx, event, state.elapsedSeconds, landscape, w, h, fever);
 
-  for (const p of state.projectiles) {
-    const x = p.x * w, y = p.y * h;
-    drawProjectile(ctx, x, y, p.weaponType);
-  }
+  if (fever) drawFeverAtmosphere(ctx, w, h, phase);
 }
 
-function drawTurret(ctx, x, y, type) {
-  const colors = { NORMAL: "#8994a4", RAPID: "#58a8d0", MACHINE_GUN: "#69bd89", PIERCING: "#a38add", EXPLOSIVE: "#dd8a59", LASER: "#e96691" };
-  ctx.fillStyle = colors[type] ?? "#8994a4";
-  ctx.fillRect(x - 10, y - 9, 20, 9);
-  ctx.fillRect(x - 2, y - 17, 4, 10);
-}
+function drawLanes(ctx, w, h, landscape, fever, phase) {
+  for (let lane = 0; lane < GRID_SIZE; lane += 1) {
+    const even = lane % 2 === 0;
+    const base = fever ? (even ? "#100718" : "#07101a") : (even ? COLORS.laneA : COLORS.laneB);
+    ctx.fillStyle = base;
+    if (landscape) ctx.fillRect(0, lane * h / 4, w, h / 4);
+    else ctx.fillRect(lane * w / 4, 0, w / 4, h);
+  }
+  for (let line = 1; line < GRID_SIZE; line += 1) {
+    const pulse = .55 + .25 * Math.sin(phase * 5 + line);
+    ctx.strokeStyle = fever && line % 2 ? `rgba(255,53,211,${pulse})` : fever ? `rgba(0,245,255,${pulse})` : "rgba(0,245,255,.38)";
+    ctx.lineWidth = fever ? 2.2 : 1.3;
+    ctx.beginPath();
+    if (landscape) { const y = line * h / 4; ctx.moveTo(0, y); ctx.lineTo(w, y); }
+    else { const x = line * w / 4; ctx.moveTo(x, 0); ctx.lineTo(x, h); }
+    ctx.stroke();
+  }
 
-function drawProjectile(ctx, x, y, type) {
   ctx.save();
-  if (type === WeaponType.LASER) {
-    ctx.strokeStyle = "#ff75a2"; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(x, y + 12); ctx.lineTo(x, y - 22); ctx.stroke();
-  } else if (type === WeaponType.PIERCING) {
-    ctx.strokeStyle = "#bea6f4"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x, y + 7); ctx.lineTo(x, y - 9); ctx.stroke();
-  } else if (type === WeaponType.EXPLOSIVE) {
-    ctx.fillStyle = "#e9935f"; ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = "#ffc59c"; ctx.stroke();
-  } else if (type === WeaponType.MACHINE_GUN) {
-    ctx.strokeStyle = "#79d49a"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, y + 5); ctx.lineTo(x, y - 5); ctx.stroke();
-  } else {
-    ctx.fillStyle = type === WeaponType.RAPID ? "#62b5df" : COLORS.projectile;
-    ctx.beginPath(); ctx.arc(x, y, type === WeaponType.RAPID ? 2.5 : 4, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = fever ? "rgba(255,255,255,.50)" : "rgba(164,183,194,.65)";
+  ctx.font = "700 10px system-ui";
+  ctx.textAlign = "center";
+  for (let lane = 0; lane < 4; lane += 1) {
+    if (landscape) ctx.fillText(String(lane + 1), w - 12, (lane + .5) * h / 4 + 3);
+    else ctx.fillText(String(lane + 1), (lane + .5) * w / 4, 14);
   }
   ctx.restore();
 }
 
-export function renderBoard(container, board) {
+function drawBossAxis(ctx, w, h, landscape, warning, fever, phase) {
+  const pulse = .5 + .5 * Math.sin(phase * 6);
+  ctx.strokeStyle = warning ? `rgba(255,53,211,${.7 + .3*pulse})` : fever ? "rgba(255,53,211,.34)" : "rgba(255,53,211,.42)";
+  ctx.lineWidth = warning ? 3.5 : 1.6;
+  ctx.setLineDash(warning ? [10, 7] : []);
+  ctx.beginPath();
+  if (landscape) { ctx.moveTo(0, h / 2); ctx.lineTo(w, h / 2); }
+  else { ctx.moveTo(w / 2, 0); ctx.lineTo(w / 2, h); }
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function drawDefenseLine(ctx, w, h, landscape, fever, phase) {
+  const p0 = screenPoint(0, .985, landscape, w, h);
+  const p1 = screenPoint(1, .985, landscape, w, h);
+  const pulse = .55 + .45 * Math.sin(phase * 4);
+  ctx.strokeStyle = fever ? `rgba(255,53,211,${.65 + .25*pulse})` : "rgba(0,245,255,.75)";
+  ctx.lineWidth = fever ? 4 : 2;
+  ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke();
+  ctx.fillStyle = fever ? COLORS.pink : COLORS.cyan;
+  ctx.font = "800 9px system-ui";
+  if (landscape) {
+    ctx.save(); ctx.translate(p0.x + 8, h - 8); ctx.rotate(-Math.PI / 2); ctx.fillText("DEFENSE", 0, 0); ctx.restore();
+  } else ctx.fillText("DEFENSE LINE", 8, p0.y - 7);
+}
+
+function drawEnemy(ctx, enemy, landscape, w, h, fever, phase) {
+  const logicalX = enemy.enemyType === "BOSS" ? .5 : (enemy.lane + .5) / GRID_SIZE;
+  const point = screenPoint(logicalX, enemy.progress, landscape, w, h);
+  const base = Math.min(w, h);
+  const r = enemy.enemyType === "BOSS" ? Math.max(18, base * .065) : Math.max(10, base * .033);
+  const color = enemy.enemyType === "BOSS" ? COLORS.pink : COLORS.red;
+  const pulse = .7 + .3 * Math.sin(phase * 7 + enemy.id);
+  ctx.fillStyle = enemy.enemyType === "BOSS" ? `rgba(255,53,211,${.10 + .08*pulse})` : "rgba(255,59,88,.10)";
+  ctx.beginPath(); ctx.arc(point.x, point.y, r * 1.65, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = color; ctx.beginPath(); ctx.arc(point.x, point.y, r, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,.72)"; ctx.beginPath(); ctx.arc(point.x, point.y, r * .28, 0, Math.PI * 2); ctx.fill();
+
+  const ratio = Math.max(0, Math.min(1, enemy.hp / enemy.maxHp));
+  const bw = r * 2.4;
+  const bh = 5;
+  if (landscape) {
+    const x = point.x - r - 10;
+    const y = point.y - bw / 2;
+    ctx.fillStyle = "#101820"; ctx.fillRect(x, y, bh, bw);
+    ctx.fillStyle = COLORS.lime; ctx.fillRect(x, y + bw * (1-ratio), bh, bw * ratio);
+  } else {
+    const x = point.x - bw/2, y = point.y - r - 10;
+    ctx.fillStyle = "#101820"; ctx.fillRect(x, y, bw, bh);
+    ctx.fillStyle = COLORS.lime; ctx.fillRect(x, y, bw * ratio, bh);
+  }
+  if (enemy.enemyType === "BOSS") {
+    ctx.fillStyle = COLORS.white; ctx.font = "900 10px system-ui"; ctx.textAlign = "center"; ctx.fillText("BOSS", point.x, point.y + 3); ctx.textAlign = "start";
+  }
+  if (fever) {
+    ctx.strokeStyle = `rgba(255,255,255,${.35 + .25*pulse})`; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(point.x, point.y, r * 1.16, 0, Math.PI * 2); ctx.stroke();
+  }
+}
+
+function drawTurret(ctx, x, y, type, landscape, readyRatio, fever, phase) {
+  const color = WEAPON_COLORS[type] ?? WEAPON_COLORS.NORMAL;
+  ctx.save();
+  ctx.translate(x, y);
+  if (landscape) ctx.rotate(-Math.PI / 2);
+  ctx.fillStyle = color;
+  ctx.fillRect(-11, -8, 22, 9);
+  ctx.fillRect(-2.5, -18, 5, 12);
+  ctx.strokeStyle = color; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(0, -5, 15, -Math.PI/2, -Math.PI/2 + Math.PI*2*Math.max(0,Math.min(1,readyRatio))); ctx.stroke();
+  if (fever) {
+    ctx.strokeStyle = `rgba(255,53,211,${.6 + .25*Math.sin(phase*6)})`; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.arc(0, -5, 20, phase*2, phase*2 + Math.PI*.9); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawProjectile(ctx, x, y, type, landscape, fever) {
+  ctx.save();
+  ctx.translate(x, y);
+  if (landscape) ctx.rotate(-Math.PI / 2);
+  if (type === WeaponType.LASER) {
+    ctx.strokeStyle = "#ff75a2"; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(0, 12); ctx.lineTo(0, -22); ctx.stroke();
+  } else if (type === WeaponType.PIERCING) {
+    ctx.strokeStyle = "#bea6f4"; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(0, 9); ctx.lineTo(0, -11); ctx.stroke();
+  } else if (type === WeaponType.EXPLOSIVE) {
+    ctx.fillStyle = "#ff7a18"; ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "#ffd0a8"; ctx.stroke();
+  } else if (type === WeaponType.MACHINE_GUN) {
+    ctx.strokeStyle = "#69bd89"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, 7); ctx.lineTo(0, -7); ctx.stroke();
+  } else {
+    ctx.fillStyle = type === WeaponType.RAPID ? "#58a8d0" : "#f4fbff";
+    ctx.beginPath(); ctx.arc(0, 0, type === WeaponType.RAPID ? 3 : 4.5, 0, Math.PI * 2); ctx.fill();
+  }
+  if (fever) {
+    ctx.fillStyle = "rgba(255,255,255,.72)"; ctx.beginPath(); ctx.arc(0, 0, 2.3, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = "rgba(255,53,211,.16)"; ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawImpact(ctx, event, elapsed, landscape, w, h, fever) {
+  const age = Math.max(0, elapsed - event.createdAtSeconds);
+  const life = Math.max(0, 1 - age / .9);
+  if (life <= 0) return;
+  const p = screenPoint(event.x, event.y, landscape, w, h);
+  const kill = event.type === "KILL" || event.type === "BOSS_KILL";
+  const maxR = event.type === "BOSS_KILL" ? 58 : kill ? 34 : 20;
+  ctx.strokeStyle = event.type === "BOSS_KILL" ? `rgba(255,53,211,${life})` : kill ? `rgba(0,245,255,${life})` : `rgba(255,176,32,${life*.75})`;
+  ctx.lineWidth = event.type === "BOSS_KILL" ? 5 : 2.5;
+  ctx.beginPath(); ctx.arc(p.x, p.y, maxR*(1-life*.35), 0, Math.PI*2); ctx.stroke();
+  if (fever || kill) {
+    const rays = event.type === "BOSS_KILL" ? 12 : 7;
+    for (let i=0;i<rays;i+=1) {
+      const a = i * Math.PI*2/rays + age*4;
+      const r1 = maxR*.35, r2=maxR*(.7+.25*(1-life));
+      ctx.beginPath(); ctx.moveTo(p.x+Math.cos(a)*r1,p.y+Math.sin(a)*r1); ctx.lineTo(p.x+Math.cos(a)*r2,p.y+Math.sin(a)*r2); ctx.stroke();
+    }
+  }
+  ctx.fillStyle = `rgba(244,251,255,${life})`;
+  ctx.font = `900 ${event.type === "BOSS_KILL" ? 18 : 12}px system-ui`;
+  ctx.textAlign = "center";
+  if (event.damage > 0) ctx.fillText(String(event.damage), p.x, p.y - maxR*.65);
+  ctx.textAlign = "start";
+}
+
+function drawFeverAtmosphere(ctx, w, h, phase) {
+  const pulse = .5 + .5 * Math.sin(phase * 6);
+  const grad = ctx.createLinearGradient(0,0,w,0);
+  grad.addColorStop(0, `rgba(255,53,211,${.12 + .06*pulse})`);
+  grad.addColorStop(.5, "rgba(255,255,255,0)");
+  grad.addColorStop(1, `rgba(0,245,255,${.10 + .05*pulse})`);
+  ctx.fillStyle = grad; ctx.fillRect(0,0,w,h);
+  ctx.strokeStyle = `rgba(255,255,255,${.25 + .2*pulse})`; ctx.lineWidth = 2.5;
+  ctx.strokeRect(1.5,1.5,w-3,h-3);
+
+  // Lightweight built-in particles; no third-party calls are allowed in Playables.
+  for (let i=0;i<18;i+=1) {
+    const t = (phase*.22 + i*.173) % 1;
+    const fromLeft = i % 2 === 0;
+    const x = fromLeft ? t*w*.22 : w - t*w*.22;
+    const y = ((i*.319 + phase*.08) % 1) * h;
+    ctx.fillStyle = i%3===0 ? "rgba(255,53,211,.58)" : i%3===1 ? "rgba(0,245,255,.55)" : "rgba(255,255,255,.55)";
+    ctx.beginPath(); ctx.arc(x,y,1.5+(i%2),0,Math.PI*2); ctx.fill();
+  }
+}
+
+export function renderBoard(container, board, landscape) {
   const fragment = document.createDocumentFragment();
-  board.forEach((value) => {
+  for (let displayIndex = 0; displayIndex < board.length; displayIndex += 1) {
+    const logicalIndex = displayIndexToLogicalIndex(displayIndex, landscape, GRID_SIZE);
+    const value = board[logicalIndex];
     const tile = document.createElement("div");
     tile.className = `tile${value >= 128 ? " high" : ""}`;
     tile.dataset.value = String(value);
+    tile.dataset.logicalIndex = String(logicalIndex);
     tile.textContent = value ? String(value) : "";
     tile.setAttribute("aria-label", value ? String(value) : "empty");
     fragment.appendChild(tile);
-  });
+  }
   container.replaceChildren(fragment);
 }
 
@@ -104,8 +276,17 @@ export function renderWeaponStrip(container, board) {
     const power = columnPower(board, col);
     const card = document.createElement("div");
     card.className = `weapon-card weapon-${type}`;
-    card.innerHTML = `<span class="lv">LV ${level}</span><span class="weapon">${type.replace("MACHINE_GUN", "M.GUN")}</span><span class="atk">ATK ${power}</span>`;
+    card.dataset.lane = String(col);
+    card.innerHTML = `<span class="lane-no">${col + 1}</span><span class="lv">LV ${level}</span><span class="weapon">${type.replace("MACHINE_GUN", "M.GUN")}</span><span class="atk">ATK ${power}</span>`;
     fragment.appendChild(card);
   }
   container.replaceChildren(fragment);
+}
+
+export function renderComboFever(root, state) {
+  const cf = state.comboFever;
+  root.classList.toggle("fever-active", feverActive(cf));
+  const gauge = root.querySelector("#fever-fill");
+  gauge.style.transform = `scaleX(${feverGaugeRatio(cf)})`;
+  root.querySelector("#fever-meter").classList.toggle("active", feverActive(cf));
 }

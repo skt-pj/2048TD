@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-  <meta name="theme-color" content="#101318">
+  <meta name="theme-color" content="#020406">
   <title>2048TD</title>
   <link rel="stylesheet" href="./styles.css">
 </head>
@@ -12,34 +12,42 @@
   <main id="app" class="app" hidden>
     <header class="status-bar">
       <div class="brand">2048TD</div>
-      <div class="status-item hp-status">
-        <span id="hp-label">HP</span>
-        <strong id="hp-text">1931 / 1931</strong>
+      <div class="hp-head">
+        <div class="hp-head-row"><span id="hp-label">HP</span><strong id="hp-text">1931/1931</strong></div>
+        <div class="hp-track"><div id="hp-fill" class="hp-fill"></div></div>
       </div>
-      <div class="status-item"><span id="wave-label">WAVE</span><strong id="wave">1</strong></div>
-      <div class="status-item"><span id="score-label">SCORE</span><strong id="score">0</strong></div>
-      <button id="restart" class="restart" type="button">Restart</button>
+      <div class="status-cell"><span id="wave-label">WAVE</span><strong id="wave">1</strong></div>
+      <div class="status-cell"><span id="score-label">SCORE</span><strong id="score">0</strong></div>
+      <button id="restart" class="restart" type="button" aria-label="Restart">↻</button>
     </header>
 
-    <section class="battle-panel" aria-label="Battlefield">
-      <canvas id="battlefield" width="720" height="620"></canvas>
-      <div id="boss-warning" class="boss-warning" hidden>BOSS WARNING <span id="boss-countdown"></span></div>
-    </section>
+    <div id="playfield-shell" class="playfield-shell">
+      <section id="battle-panel" class="battle-panel" aria-label="Battlefield">
+        <canvas id="battlefield" width="720" height="620"></canvas>
+        <div class="flow-label portrait-only">ENEMY ↓</div>
+        <div class="flow-label landscape-only">← ENEMY</div>
+        <div id="boss-warning" class="boss-warning" hidden>BOSS <span id="boss-countdown"></span></div>
+        <div id="combo-hud" class="combo-hud" aria-live="polite" hidden>
+          <strong id="combo-number">1</strong><span>COMBO</span>
+        </div>
+        <div id="fever-meter" class="fever-meter" aria-label="Fever gauge">
+          <div class="fever-track"><div id="fever-fill" class="fever-fill"></div></div>
+          <strong>FEVER</strong>
+        </div>
+      </section>
 
-    <section class="hp-strip" aria-label="Total HP">
-      <div class="hp-strip-row"><strong id="total-hp-label">TOTAL HP</strong><span id="total-hp-text">1931 / 1931</span></div>
-      <div class="hp-track"><div id="hp-fill" class="hp-fill"></div></div>
-    </section>
+      <section id="weapon-strip" class="weapon-strip" aria-label="Column weapons"></section>
 
-    <section id="weapon-strip" class="weapon-strip" aria-label="Column weapons"></section>
+      <section class="board-section">
+        <div class="board-heading">
+          <strong>2048</strong>
+          <span id="hint">Build columns to evolve weapons</span>
+        </div>
+        <div id="board" class="board" role="application" aria-label="2048 board" tabindex="0"></div>
+      </section>
+    </div>
 
-    <section class="board-section">
-      <div class="board-heading">
-        <strong>2048</strong>
-        <span id="hint">Build columns to evolve weapons</span>
-      </div>
-      <div id="board" class="board" role="application" aria-label="2048 board" tabindex="0"></div>
-    </section>
+    <div id="fever-transition" class="fever-transition" hidden aria-live="assertive">FEVER</div>
 
     <div id="game-over" class="game-over" hidden>
       <div class="game-over-card">

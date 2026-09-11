@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+  <meta name="theme-color" content="#101318">
+  <title>2048TD</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div id="loading" class="loading" role="status" aria-live="polite">Loading 2048TD…</div>
+  <main id="app" class="app" hidden>
+    <header class="status-bar">
+      <div class="brand">2048TD</div>
+      <div class="status-item hp-status">
+        <span id="hp-label">HP</span>
+        <strong id="hp-text">1931 / 1931</strong>
+      </div>
+      <div class="status-item"><span id="wave-label">WAVE</span><strong id="wave">1</strong></div>
+      <div class="status-item"><span id="score-label">SCORE</span><strong id="score">0</strong></div>
+      <button id="restart" class="restart" type="button">Restart</button>
+    </header>
+
+    <section class="battle-panel" aria-label="Battlefield">
+      <canvas id="battlefield" width="720" height="620"></canvas>
+      <div id="boss-warning" class="boss-warning" hidden>BOSS WARNING <span id="boss-countdown"></span></div>
+    </section>
+
+    <section class="hp-strip" aria-label="Total HP">
+      <div class="hp-strip-row"><strong id="total-hp-label">TOTAL HP</strong><span id="total-hp-text">1931 / 1931</span></div>
+      <div class="hp-track"><div id="hp-fill" class="hp-fill"></div></div>
+    </section>
+
+    <section id="weapon-strip" class="weapon-strip" aria-label="Column weapons"></section>
+
+    <section class="board-section">
+      <div class="board-heading">
+        <strong>2048</strong>
+        <span id="hint">Build columns to evolve weapons</span>
+      </div>
+      <div id="board" class="board" role="application" aria-label="2048 board" tabindex="0"></div>
+    </section>
+
+    <div id="game-over" class="game-over" hidden>
+      <div class="game-over-card">
+        <h1 id="game-over-title">GAME OVER</h1>
+        <p id="game-over-reason"></p>
+        <p><span id="final-score-label">Score</span>: <strong id="final-score">0</strong></p>
+        <p><span id="best-score-label">Best</span>: <strong id="best-score">0</strong></p>
+        <button id="play-again" type="button">Play Again</button>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://www.youtube.com/game_api/v1"></script>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

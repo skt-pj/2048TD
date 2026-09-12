@@ -216,6 +216,9 @@ subscribePlatformPause((paused) => {
 });
 
 controller.preload();
+// YouTube Playables may receive focus without a gesture. Attempt playback now;
+// if the browser blocks it, unlock() resets and the next pointer/key input retries.
+void controller.unlock();
 
 const unlock = () => controller.unlock();
 document.addEventListener("pointerdown", unlock, { passive: true });

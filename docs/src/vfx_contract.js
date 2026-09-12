@@ -1,4 +1,4 @@
-export const VFX_EVENT_CONTRACT_VERSION = 1;
+export const VFX_EVENT_CONTRACT_VERSION = 2;
 export const VFX_LIFETIME_SECONDS = 0.90;
 
 export const VfxStrengthTier = Object.freeze({
@@ -16,6 +16,8 @@ export const VFX_BUDGET = Object.freeze({
   HEAVY_DEGRADE_AT_EFFECTS: 36,
   CRITICAL_DEGRADE_AT_EFFECTS: 44,
 });
+
+const VALID_EVENT_TYPES = new Set(["HIT", "KILL", "BOSS_KILL", "BASE_DAMAGE"]);
 
 const BASE_PARTICLES = Object.freeze({
   LIGHT: 6,
@@ -36,6 +38,9 @@ export function vfxStrengthTier(type, damage = 0, targetMaxHp = 0) {
   if (type === "KILL") return VfxStrengthTier.HEAVY;
   const maxHp = Math.max(0, Number(targetMaxHp) || 0);
   const ratio = maxHp > 0 ? Math.max(0, Number(damage) || 0) / maxHp : 0;
+  if (type === "BASE_DAMAGE") {
+    return ratio >= 0.10 ? VfxStrengthTier.CRITICAL : VfxStrengthTier.HEAVY;
+  }
   if (ratio >= 0.35) return VfxStrengthTier.HEAVY;
   if (ratio >= 0.15) return VfxStrengthTier.MEDIUM;
   return VfxStrengthTier.LIGHT;
@@ -65,7 +70,7 @@ export function normalizeVfxEvent(event, nowSeconds = null) {
   const createdAtSeconds = Number.isFinite(createdRaw)
     ? Math.max(0, now == null ? createdRaw : Math.min(createdRaw, now))
     : (now ?? 0);
-  const type = event.type === "BOSS_KILL" || event.type === "KILL" ? event.type : "HIT";
+  const type = VALID_EVENT_TYPES.has(event.type) ? event.type : "HIT";
   const strengthTier = Object.values(VfxStrengthTier).includes(event.strengthTier)
     ? event.strengthTier
     : vfxStrengthTier(type, event.damage, event.targetMaxHp);
@@ -91,7 +96,13 @@ export function normalizeVfxEvent(event, nowSeconds = null) {
 }
 
 function eventPriority(event) {
-  const typeBonus = event.type === "BOSS_KILL" ? 100 : event.type === "KILL" ? 50 : 0;
+  const typeBonus = event.type === "BOSS_KILL"
+    ? 100
+    : event.type === "BASE_DAMAGE"
+      ? 80
+      : event.type === "KILL"
+        ? 50
+        : 0;
   return typeBonus + (TIER_PRIORITY[event.strengthTier] ?? 1) * 10;
 }
 

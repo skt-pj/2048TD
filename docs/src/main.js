@@ -5,6 +5,7 @@ import { renderBattle, renderBoard, renderComboFever, renderWeaponStrip } from "
 import { isLandscapeViewport, screenDirectionToLogical } from "./orientation.js";
 import { feverActive } from "./combo_fever.js";
 import { LandscapeHand, normalizePreferences } from "./preferences.js";
+import { setSfxPreferences } from "./audio.js";
 
 const bridge = new PlayablesBridge();
 const engine = new GameEngine();
@@ -57,6 +58,9 @@ function applyStrings() {
   $("hand-right-title").textContent = text.rightHand;
   $("hand-right-description").textContent = text.rightHandDescription;
   $("portrait-unchanged").textContent = text.portraitUnchanged;
+  $("sound-effects-title").textContent = text.soundEffects;
+  $("sound-effects-description").textContent = text.soundEffectsDescription;
+  $("sound-effects-volume-label").textContent = text.soundEffectsVolume;
   $("settings-restart").textContent = text.restartGame;
   $("settings-done").textContent = text.done;
 }
@@ -71,13 +75,34 @@ function updatePreferenceUi() {
   $("hand-left").setAttribute("aria-checked", String(!rightHand));
   $("hand-right").setAttribute("aria-checked", String(rightHand));
   $("landscape-flow-label").textContent = rightHand ? "ENEMY →" : "← ENEMY";
+
+  const soundToggle = $("sound-effects-toggle");
+  const volume = Math.round(preferences.sfxVolume * 100);
+  soundToggle.setAttribute("aria-checked", String(preferences.sfxEnabled));
+  $("sound-effects-toggle-label").textContent = preferences.sfxEnabled ? text.soundEffectsOn : text.soundEffectsOff;
+  $("sound-effects-volume").value = String(volume);
+  $("sound-effects-volume").setAttribute("aria-valuenow", String(volume));
+  $("sound-effects-volume-value").textContent = `${volume}%`;
+  setSfxPreferences(preferences);
 }
 
 function setLandscapeHand(hand) {
-  preferences = normalizePreferences({ landscapeHand: hand });
+  preferences = normalizePreferences({ ...preferences, landscapeHand: hand });
   updatePreferenceUi();
   render();
   saveProgress();
+}
+
+function setSoundEffectsEnabled(enabled) {
+  preferences = normalizePreferences({ ...preferences, sfxEnabled: enabled });
+  updatePreferenceUi();
+  saveProgress();
+}
+
+function setSoundEffectsVolume(percent, persist) {
+  preferences = normalizePreferences({ ...preferences, sfxVolume: Number(percent) / 100 });
+  updatePreferenceUi();
+  if (persist) saveProgress();
 }
 
 function openSettings() {
@@ -244,7 +269,7 @@ function installInput() {
   };
   boardEl.addEventListener("keydown", handleKey);
   document.addEventListener("keydown", (event) => {
-    if (document.activeElement === boardEl) return;
+    if (settingsOpen || document.activeElement === boardEl) return;
     handleKey(event);
   });
 
@@ -273,6 +298,9 @@ function installInput() {
   });
   $("hand-left").addEventListener("click", () => setLandscapeHand(LandscapeHand.LEFT));
   $("hand-right").addEventListener("click", () => setLandscapeHand(LandscapeHand.RIGHT));
+  $("sound-effects-toggle").addEventListener("click", () => setSoundEffectsEnabled(!preferences.sfxEnabled));
+  $("sound-effects-volume").addEventListener("input", (event) => setSoundEffectsVolume(event.currentTarget.value, false));
+  $("sound-effects-volume").addEventListener("change", (event) => setSoundEffectsVolume(event.currentTarget.value, true));
   $("play-again").addEventListener("click", newGame);
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && settingsOpen) {

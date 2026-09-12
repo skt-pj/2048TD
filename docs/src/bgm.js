@@ -169,7 +169,6 @@ class BgmController {
 
 const controller = new BgmController();
 const app = document.getElementById("app");
-const settings = document.getElementById("settings-overlay");
 const gameOver = document.getElementById("game-over");
 let gameOverWasVisible = gameOver ? !gameOver.hidden : false;
 
@@ -178,7 +177,7 @@ export function setBgmPreferences(preferences) {
 }
 
 function gameShouldPause() {
-  return document.hidden || !settings?.hidden || !gameOver?.hidden;
+  return document.hidden || !gameOver?.hidden;
 }
 
 function syncPlaybackState() {
@@ -201,13 +200,6 @@ if (app) {
   new MutationObserver(syncFeverMode).observe(app, {
     attributes: true,
     attributeFilter: ["class"],
-  });
-}
-
-if (settings) {
-  new MutationObserver(syncPlaybackState).observe(settings, {
-    attributes: true,
-    attributeFilter: ["hidden"],
   });
 }
 

@@ -7,9 +7,9 @@ const nativeFetch = globalThis.fetch?.bind(globalThis);
 let flushPromise = null;
 
 function createUuidV4() {
-  if (typeof crypto?.randomUUID === "function") return crypto.randomUUID();
+  if (typeof globalThis.crypto?.randomUUID === "function") return globalThis.crypto.randomUUID();
   const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
+  globalThis.crypto.getRandomValues(bytes);
   bytes[6] = (bytes[6] & 0x0f) | 0x40;
   bytes[8] = (bytes[8] & 0x3f) | 0x80;
   const hex = Array.from(bytes, (value) => value.toString(16).padStart(2, "0"));
@@ -147,16 +147,19 @@ export function flushPendingRankingScores() {
   flushPromise = (async () => {
     const queue = loadQueue();
     let changed = false;
-    while (queue.length) {
-      const entry = queue[0];
-      if (!entry.finishBody) break;
+    for (let index = 0; index < queue.length;) {
+      const entry = queue[index];
+      if (!entry.finishBody) {
+        index += 1;
+        continue;
+      }
       try {
         const completed = await replayEntry(entry);
         if (!completed) break;
       } catch {
         break;
       }
-      queue.shift();
+      queue.splice(index, 1);
       changed = true;
       saveQueue(queue);
     }

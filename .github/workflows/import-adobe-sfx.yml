@@ -45,6 +45,23 @@ jobs:
             unzip -q "$TMP/$pack.zip" -d "$TMP/$pack"
           done
 
+          list_candidates() {
+            local pack="$1"
+            local pattern="$2"
+            echo "--- candidates: $pack / $pattern ---"
+            find "$TMP/$pack" -type f \( -iname '*.wav' -o -iname '*.aif' -o -iname '*.aiff' \) \
+              | grep -Ei "$pattern" \
+              | sed "s#^$TMP/$pack/##" \
+              | sort \
+              | sed -n '1,100p' || true
+          }
+
+          list_candidates weapons '(pistol|rifle|gun|machine|cannon|arrow|rocket|grenade|launcher|shot|fire)'
+          list_candidates crashes '(impact|hit|slam|thud|crash|smash|break|explosion)'
+          list_candidates multimedia '(beep|ding|success|positive|notification|notify|error|fail|close|alert|chime|score)'
+          list_candidates science_fiction '(laser|beam|warning|alarm|energy|power|charge|warp|shutdown|descending|blast|explosion)'
+          list_candidates cartoon '(pop|splat|whoosh|swoosh|swish|slide|smash|break|boing|chime)'
+
           : > "$OUT/SOURCES.tsv"
           printf 'output\tadobe_pack\toriginal_file\n' >> "$OUT/SOURCES.tsv"
 

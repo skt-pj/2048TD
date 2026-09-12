@@ -4,6 +4,11 @@ export class PlayablesBridge {
   constructor() {
     this.inYouTube = typeof globalThis.ytgame !== "undefined" && Boolean(globalThis.ytgame.IN_PLAYABLES_ENV);
     this.loaded = false;
+    this.pendingSave = null;
+    this.savePromise = null;
+    this.scoreTarget = 0;
+    this.lastSentScore = 0;
+    this.scorePromise = null;
   }
 
   firstFrameReady() {
@@ -11,7 +16,9 @@ export class PlayablesBridge {
   }
 
   gameReady() {
-    if (this.inYouTube) globalThis.ytgame.game.gameReady();
+    if (!this.inYouTube) return;
+    globalThis.ytgame.game.gameReady();
+    void this.flushScore();
   }
 
   async getLanguage() {
@@ -31,28 +38,97 @@ export class PlayablesBridge {
     }
     this.loaded = true;
     if (!raw) return null;
-    try { return JSON.parse(raw); } catch { return null; }
-  }
-
-  async save(data) {
-    if (!this.loaded) return;
-    const raw = JSON.stringify(data);
-    if (this.inYouTube) {
-      try { await globalThis.ytgame.game.saveData(raw); } catch { /* best effort */ }
-    } else {
-      try { globalThis.localStorage?.setItem(LOCAL_SAVE_KEY, raw); } catch { /* preview only */ }
+    try {
+      const parsed = JSON.parse(raw);
+      if (this.inYouTube) {
+        this.scoreTarget = Math.max(this.scoreTarget, Math.max(0, Math.trunc(Number(parsed?.bestScore) || 0)));
+      }
+      return parsed;
+    } catch {
+      return null;
     }
   }
 
+  async flushSaves() {
+    if (!this.inYouTube || this.savePromise) return this.savePromise ?? true;
+    this.savePromise = (async () => {
+      let success = true;
+      while (this.pendingSave !== null) {
+        const current = this.pendingSave;
+        this.pendingSave = null;
+        try {
+          await globalThis.ytgame.game.saveData(current.raw);
+          this.scoreTarget = Math.max(this.scoreTarget, current.bestScore);
+        } catch (error) {
+          if (this.pendingSave === null) this.pendingSave = current;
+          console.warn("Unable to save Playables data", error);
+          success = false;
+          break;
+        }
+      }
+      if (success) await this.flushScore();
+      return success;
+    })().finally(() => {
+      this.savePromise = null;
+    });
+    return this.savePromise;
+  }
+
+  async save(data) {
+    if (!this.loaded) return false;
+    const raw = JSON.stringify(data);
+    if (this.inYouTube) {
+      this.pendingSave = {
+        raw,
+        bestScore: Math.max(0, Math.trunc(Number(data?.bestScore) || 0)),
+      };
+      return this.flushSaves();
+    }
+    try {
+      globalThis.localStorage?.setItem(LOCAL_SAVE_KEY, raw);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async flushScore() {
+    if (!this.inYouTube) return true;
+    if (this.scorePromise) return this.scorePromise;
+    if (this.scoreTarget <= this.lastSentScore) return true;
+
+    this.scorePromise = (async () => {
+      while (this.scoreTarget > this.lastSentScore) {
+        const target = this.scoreTarget;
+        try {
+          await globalThis.ytgame.engagement.sendScore({ value: target });
+          this.lastSentScore = target;
+        } catch (error) {
+          console.warn("Unable to sync Playables score", error);
+          return false;
+        }
+      }
+      return true;
+    })().finally(() => {
+      this.scorePromise = null;
+    });
+    return this.scorePromise;
+  }
+
   async sendScore(value) {
-    if (!this.inYouTube) return;
-    try { await globalThis.ytgame.engagement.sendScore({ value: Math.max(0, Math.trunc(value)) }); } catch { /* best effort */ }
+    if (!this.inYouTube) return true;
+    this.scoreTarget = Math.max(this.scoreTarget, Math.max(0, Math.trunc(Number(value) || 0)));
+    return this.flushScore();
   }
 
   installSystemHandlers({ onPause, onResume }) {
     if (!this.inYouTube) return;
     globalThis.ytgame.system.onPause(onPause);
-    globalThis.ytgame.system.onResume(onResume);
+    globalThis.ytgame.system.onResume(() => {
+      onResume();
+      void this.flushSaves();
+      void this.flushScore();
+    });
     globalThis.ytgame.system.onAudioEnabledChange(() => {});
   }
 }

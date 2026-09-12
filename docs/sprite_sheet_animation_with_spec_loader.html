@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sprite Sheet Animation Viewer</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f5f5f5;
+      font-family: sans-serif;
+    }
+
+    .stage {
+      width: min(860px, calc(100vw - 32px));
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 18px;
+      padding: 24px;
+      box-sizing: border-box;
+      background: #ffffff;
+      border: 1px solid #dddddd;
+      border-radius: 12px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .preview-wrap {
+      width: 320px;
+      height: 288px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background:
+        linear-gradient(45deg, #eeeeee 25%, transparent 25%),
+        linear-gradient(-45deg, #eeeeee 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #eeeeee 75%),
+        linear-gradient(-45deg, transparent 75%, #eeeeee 75%);
+      background-size: 24px 24px;
+      background-position: 0 0, 0 12px, 12px -12px, -12px 0;
+      border: 1px solid #cccccc;
+      overflow: hidden;
+    }
+
+    .sprite {
+      width: 160px;
+      height: 144px;
+      background-repeat: no-repeat;
+      background-position: 0 0;
+      image-rendering: pixelated;
+      transform: scale(2);
+      transform-origin: center;
+    }
+
+    .form {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 210px 1fr;
+      gap: 10px 12px;
+      align-items: center;
+    }
+
+    label {
+      font-size: 14px;
+      color: #333333;
+    }
+
+    input {
+      box-sizing: border-box;
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #cccccc;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    input[readonly] {
+      background: #eeeeee;
+      color: #555555;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    button {
+      padding: 8px 16px;
+      border: 1px solid #cccccc;
+      background: #ffffff;
+      cursor: pointer;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    button:hover {
+      background: #eeeeee;
+    }
+
+    .status {
+      min-height: 20px;
+      font-size: 13px;
+      color: #555555;
+      text-align: center;
+      white-space: pre-wrap;
+    }
+
+    .spec {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 12px;
+      background: #f8f8f8;
+      border: 1px solid #dddddd;
+      border-radius: 8px;
+      font-size: 12px;
+      color: #333333;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      max-height: 220px;
+      overflow: auto;
+    }
+  </style>
+</head>
+
+<body>
+  <main class="stage">
+    <h1>Sprite Sheet Animation Viewer</h1>
+
+    <div class="preview-wrap">
+      <div id="sprite" class="sprite"></div>
+    </div>
+
+    <div class="form">
+      <label for="spriteFile">スプライトシート画像</label>
+      <input id="spriteFile" type="file" accept="image/*" />
+
+      <label for="specFile">仕様テキスト</label>
+      <input id="specFile" type="file" accept=".txt,text/plain" />
+
+      <label for="frameWidth">1フレームの幅</label>
+      <input id="frameWidth" type="number" min="1" value="160" />
+
+      <label for="frameHeight">1フレームの高さ</label>
+      <input id="frameHeight" type="number" min="1" value="144" />
+
+      <label for="sheetWidth">読み込み画像の横幅</label>
+      <input id="sheetWidth" type="number" value="0" readonly />
+
+      <label for="sheetHeight">読み込み画像の高さ</label>
+      <input id="sheetHeight" type="number" value="0" readonly />
+
+      <label for="frameCount">フレーム数</label>
+      <input id="frameCount" type="number" min="1" value="24" />
+
+      <label for="fps">FPS</label>
+      <input id="fps" type="number" min="0.000001" step="0.000001" value="10.105263" />
+
+      <label for="animationDuration">アニメーション長 秒</label>
+      <input id="animationDuration" type="number" min="0.000001" step="0.000001" value="2.375000" />
+
+      <label for="scale">表示倍率</label>
+      <input id="scale" type="number" min="0.1" step="0.1" value="2" />
+    </div>
+
+    <div class="controls">
+      <button type="button" onclick="startAnimation()">再生</button>
+      <button type="button" onclick="stopAnimation()">停止</button>
+      <button type="button" onclick="resetAnimation()">リセット</button>
+      <button type="button" onclick="applySettings()">設定反映</button>
+    </div>
+
+    <div id="status" class="status">画像と仕様テキストを選択してください。</div>
+    <section id="specPreview" class="spec">仕様テキスト未読み込み</section>
+  </main>
+
+  <script>
+    const sprite = document.getElementById("sprite");
+    const spriteFile = document.getElementById("spriteFile");
+    const specFile = document.getElementById("specFile");
+    const frameWidthInput = document.getElementById("frameWidth");
+    const frameHeightInput = document.getElementById("frameHeight");
+    const sheetWidthInput = document.getElementById("sheetWidth");
+    const sheetHeightInput = document.getElementById("sheetHeight");
+    const frameCountInput = document.getElementById("frameCount");
+    const fpsInput = document.getElementById("fps");
+    const animationDurationInput = document.getElementById("animationDuration");
+    const scaleInput = document.getElementById("scale");
+    const statusText = document.getElementById("status");
+    const specPreview = document.getElementById("specPreview");
+
+    const config = {
+      sourceFileName: "",
+      specFileName: "",
+      sheetWidth: 0,
+      sheetHeight: 0,
+      frameWidth: 160,
+      frameHeight: 144,
+      frameCount: 24,
+      fps: 10.105263,
+      animationDurationSeconds: 2.375000,
+      layout: "horizontal",
+      rowCount: 1,
+      frameIndexOrigin: 0,
+      scale: 2
+    };
+
+    let currentFrame = 0;
+    let timerId = null;
+    let loadedImageUrl = null;
+
+    function getNumberValue(input, fallback) {
+      const value = Number(input.value);
+      if (!Number.isFinite(value) || value <= 0) {
+        return fallback;
+      }
+      return value;
+    }
+
+    function parseFirstNumber(text) {
+      const match = String(text || "").match(/-?\d+(?:\.\d+)?/);
+      return match ? Number(match[0]) : null;
+    }
+
+    function parseSize(text) {
+      const match = String(text || "").match(/(\d+)\s*x\s*(\d+)/i);
+      if (!match) {
+        return null;
+      }
+      return {
+        width: Number(match[1]),
+        height: Number(match[2])
+      };
+    }
+
+    function getSpecValue(specText, label) {
+      const lines = String(specText || "").split(/\r?\n/);
+      const prefix = label.toLowerCase() + ":";
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.toLowerCase().startsWith(prefix)) {
+          return trimmed.slice(prefix.length).trim();
+        }
+      }
+      return "";
+    }
+
+    function parseSpecText(specText) {
+      const parsed = {};
+
+      const file = getSpecValue(specText, "File");
+      if (file) {
+        parsed.sourceFileName = file;
+      }
+
+      const sheetSize = parseSize(getSpecValue(specText, "Sheet size"));
+      if (sheetSize) {
+        parsed.sheetWidth = sheetSize.width;
+        parsed.sheetHeight = sheetSize.height;
+      }
+
+      const frameSize = parseSize(getSpecValue(specText, "Frame size"));
+      if (frameSize) {
+        parsed.frameWidth = frameSize.width;
+        parsed.frameHeight = frameSize.height;
+      }
+
+      const frameCount = parseFirstNumber(getSpecValue(specText, "Frame count"));
+      if (frameCount !== null) {
+        parsed.frameCount = Math.floor(frameCount);
+      }
+
+      const fps = parseFirstNumber(getSpecValue(specText, "Equivalent fps"));
+      if (fps !== null) {
+        parsed.fps = fps;
+      }
+
+      const duration = parseFirstNumber(getSpecValue(specText, "Animation duration seconds"));
+      if (duration !== null) {
+        parsed.animationDurationSeconds = duration;
+      }
+
+      const layoutText = getSpecValue(specText, "Layout");
+      if (layoutText) {
+        parsed.layout = layoutText.toLowerCase().includes("horizontal") ? "horizontal" : layoutText;
+        parsed.rowCount = layoutText.toLowerCase().includes("1 row") ? 1 : config.rowCount;
+      }
+
+      const origin = parseFirstNumber(getSpecValue(specText, "Frame index origin"));
+      if (origin !== null) {
+        parsed.frameIndexOrigin = Math.floor(origin);
+      }
+
+      return parsed;
+    }
+
+    function applyParsedSpec(parsed) {
+      if (parsed.sourceFileName !== undefined) {
+        config.sourceFileName = parsed.sourceFileName;
+      }
+
+      if (parsed.sheetWidth !== undefined) {
+        config.sheetWidth = parsed.sheetWidth;
+        sheetWidthInput.value = String(config.sheetWidth);
+      }
+
+      if (parsed.sheetHeight !== undefined) {
+        config.sheetHeight = parsed.sheetHeight;
+        sheetHeightInput.value = String(config.sheetHeight);
+      }
+
+      if (parsed.frameWidth !== undefined) {
+        config.frameWidth = parsed.frameWidth;
+        frameWidthInput.value = String(config.frameWidth);
+      }
+
+      if (parsed.frameHeight !== undefined) {
+        config.frameHeight = parsed.frameHeight;
+        frameHeightInput.value = String(config.frameHeight);
+      }
+
+      if (parsed.frameCount !== undefined) {
+        config.frameCount = parsed.frameCount;
+        frameCountInput.value = String(config.frameCount);
+      }
+
+      if (parsed.fps !== undefined) {
+        config.fps = parsed.fps;
+        fpsInput.value = String(config.fps);
+      }
+
+      if (parsed.animationDurationSeconds !== undefined) {
+        config.animationDurationSeconds = parsed.animationDurationSeconds;
+        animationDurationInput.value = String(config.animationDurationSeconds);
+      }
+
+      if (parsed.layout !== undefined) {
+        config.layout = parsed.layout;
+      }
+
+      if (parsed.rowCount !== undefined) {
+        config.rowCount = parsed.rowCount;
+      }
+
+      if (parsed.frameIndexOrigin !== undefined) {
+        config.frameIndexOrigin = parsed.frameIndexOrigin;
+      }
+
+      applySettings();
+    }
+
+    function calculateFrameCountFromSheetWidth() {
+      if (config.sheetWidth <= 0 || config.frameWidth <= 0) {
+        return config.frameCount;
+      }
+      return Math.floor(config.sheetWidth / config.frameWidth);
+    }
+
+    function syncFrameCountWithLoadedImage() {
+      if (config.sheetWidth <= 0) {
+        return;
+      }
+
+      const calculatedFrameCount = calculateFrameCountFromSheetWidth();
+      if (calculatedFrameCount >= 1) {
+        config.frameCount = calculatedFrameCount;
+        frameCountInput.value = String(config.frameCount);
+      }
+    }
+
+    function applySettings() {
+      config.frameWidth = Math.floor(getNumberValue(frameWidthInput, config.frameWidth));
+      config.frameHeight = Math.floor(getNumberValue(frameHeightInput, config.frameHeight));
+      config.frameCount = Math.floor(getNumberValue(frameCountInput, config.frameCount));
+      config.fps = getNumberValue(fpsInput, config.fps);
+      config.animationDurationSeconds = getNumberValue(animationDurationInput, config.animationDurationSeconds);
+      config.scale = getNumberValue(scaleInput, config.scale);
+
+      if (loadedImageUrl) {
+        syncFrameCountWithLoadedImage();
+      }
+
+      sprite.style.width = `${config.frameWidth}px`;
+      sprite.style.height = `${config.frameHeight}px`;
+      sprite.style.transform = `scale(${config.scale})`;
+
+      currentFrame = Math.min(currentFrame, config.frameCount - 1);
+      drawFrame(currentFrame);
+
+      if (timerId !== null) {
+        clearInterval(timerId);
+        timerId = null;
+        startAnimation();
+      }
+
+      statusText.textContent = `設定を反映しました。フレーム数: ${config.frameCount}, FPS: ${config.fps}`;
+    }
+
+    function getFrameRect(frameIndex) {
+      return {
+        x: frameIndex * config.frameWidth,
+        y: 0,
+        width: config.frameWidth,
+        height: config.frameHeight
+      };
+    }
+
+    function getFrameTimeSeconds(frameIndex) {
+      return config.animationDurationSeconds * frameIndex / config.frameCount;
+    }
+
+    function drawFrame(frameIndex) {
+      const rect = getFrameRect(frameIndex);
+      sprite.style.backgroundPosition = `${-rect.x}px ${-rect.y}px`;
+    }
+
+    function nextFrame() {
+      currentFrame = (currentFrame + 1) % config.frameCount;
+      drawFrame(currentFrame);
+
+      const frameTime = getFrameTimeSeconds(currentFrame).toFixed(6);
+      statusText.textContent = `再生中: frame ${currentFrame} / ${config.frameCount - 1}, time ${frameTime}s`;
+    }
+
+    function startAnimation() {
+      if (!loadedImageUrl) {
+        statusText.textContent = "先にスプライトシート画像を選択してください。";
+        return;
+      }
+
+      if (timerId !== null) {
+        return;
+      }
+
+      applySettings();
+
+      const interval = 1000 / config.fps;
+      timerId = setInterval(nextFrame, interval);
+      statusText.textContent = "再生を開始しました。";
+    }
+
+    function stopAnimation() {
+      if (timerId === null) {
+        return;
+      }
+
+      clearInterval(timerId);
+      timerId = null;
+      statusText.textContent = "停止しました。";
+    }
+
+    function resetAnimation() {
+      stopAnimation();
+      currentFrame = 0;
+      drawFrame(currentFrame);
+      statusText.textContent = "リセットしました。";
+    }
+
+    function loadSpriteSheet(file) {
+      if (loadedImageUrl) {
+        URL.revokeObjectURL(loadedImageUrl);
+      }
+
+      loadedImageUrl = URL.createObjectURL(file);
+      const image = new Image();
+
+      image.onload = function () {
+        config.sheetWidth = image.naturalWidth;
+        config.sheetHeight = image.naturalHeight;
+
+        sheetWidthInput.value = String(config.sheetWidth);
+        sheetHeightInput.value = String(config.sheetHeight);
+
+        sprite.style.backgroundImage = `url("${loadedImageUrl}")`;
+
+        resetAnimation();
+        applySettings();
+
+        const calculatedFrameCount = calculateFrameCountFromSheetWidth();
+        const remainder = config.sheetWidth % config.frameWidth;
+
+        if (remainder !== 0) {
+          statusText.textContent = `読み込みました: ${file.name}\n横幅 ${config.sheetWidth}px はフレーム幅 ${config.frameWidth}px で割り切れません。フレーム数は ${calculatedFrameCount} に切り捨てました。`;
+          return;
+        }
+
+        statusText.textContent = `読み込みました: ${file.name}\n横幅 ${config.sheetWidth}px ÷ ${config.frameWidth}px = ${config.frameCount} フレーム。`;
+      };
+
+      image.onerror = function () {
+        statusText.textContent = "画像の読み込みに失敗しました。";
+      };
+
+      image.src = loadedImageUrl;
+    }
+
+    function loadSpec(file) {
+      const reader = new FileReader();
+
+      reader.onload = function () {
+        const specText = String(reader.result || "");
+        const parsed = parseSpecText(specText);
+
+        config.specFileName = file.name;
+        specPreview.textContent = specText;
+        applyParsedSpec(parsed);
+
+        statusText.textContent = `仕様テキストを読み込みました: ${file.name}\n画像読み込み後は、画像横幅からフレーム数を再計算します。`;
+      };
+
+      reader.onerror = function () {
+        statusText.textContent = "仕様テキストの読み込みに失敗しました。";
+      };
+
+      reader.readAsText(file, "utf-8");
+    }
+
+    spriteFile.addEventListener("change", function () {
+      const file = spriteFile.files[0];
+      if (!file) {
+        return;
+      }
+      loadSpriteSheet(file);
+    });
+
+    specFile.addEventListener("change", function () {
+      const file = specFile.files[0];
+      if (!file) {
+        return;
+      }
+      loadSpec(file);
+    });
+
+    applySettings();
+  </script>
+</body>
+</html>

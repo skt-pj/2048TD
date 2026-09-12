@@ -1,3 +1,5 @@
+import { setPlatformAudioEnabled, setPlatformPaused } from "./platform_state.js";
+
 const LOCAL_SAVE_KEY = "2048td-playables-preview-save";
 
 export class PlayablesBridge {
@@ -123,12 +125,23 @@ export class PlayablesBridge {
 
   installSystemHandlers({ onPause, onResume }) {
     if (!this.inYouTube) return;
-    globalThis.ytgame.system.onPause(onPause);
+
+    try { setPlatformAudioEnabled(globalThis.ytgame.system.isAudioEnabled()); }
+    catch { setPlatformAudioEnabled(true); }
+    setPlatformPaused(false);
+
+    globalThis.ytgame.system.onAudioEnabledChange((enabled) => {
+      setPlatformAudioEnabled(enabled);
+    });
+    globalThis.ytgame.system.onPause(() => {
+      setPlatformPaused(true);
+      onPause();
+    });
     globalThis.ytgame.system.onResume(() => {
+      setPlatformPaused(false);
       onResume();
       void this.flushSaves();
       void this.flushScore();
     });
-    globalThis.ytgame.system.onAudioEnabledChange(() => {});
   }
 }

@@ -45,73 +45,43 @@ jobs:
             unzip -q "$TMP/$pack.zip" -d "$TMP/$pack"
           done
 
-          list_candidates() {
-            local pack="$1"
-            local pattern="$2"
-            echo "--- candidates: $pack / $pattern ---"
-            find "$TMP/$pack" -type f \( -iname '*.wav' -o -iname '*.aif' -o -iname '*.aiff' \) \
-              | grep -Ei "$pattern" \
-              | sed "s#^$TMP/$pack/##" \
-              | sort \
-              | sed -n '1,100p' || true
-          }
-
-          list_candidates weapons '(pistol|rifle|gun|machine|cannon|arrow|rocket|grenade|launcher|shot|fire)'
-          list_candidates crashes '(impact|hit|slam|thud|crash|smash|break|explosion)'
-          list_candidates multimedia '(beep|ding|success|positive|notification|notify|error|fail|close|alert|chime|score)'
-          list_candidates science_fiction '(laser|beam|warning|alarm|energy|power|charge|warp|shutdown|descending|blast|explosion)'
-          list_candidates cartoon '(pop|splat|whoosh|swoosh|swish|slide|smash|break|boing|chime)'
-
           : > "$OUT/SOURCES.tsv"
           printf 'output\tadobe_pack\toriginal_file\n' >> "$OUT/SOURCES.tsv"
 
-          pick() {
+          pick_exact() {
             local output="$1"
-            local packs="$2"
-            local pattern="$3"
-            local source=''
-            local pack=''
-            IFS=',' read -ra candidates <<< "$packs"
-            for candidate in "${candidates[@]}"; do
-              source="$(find "$TMP/$candidate" -type f \( -iname '*.wav' -o -iname '*.aif' -o -iname '*.aiff' \) | grep -Ei "$pattern" | sort | sed -n '1p' || true)"
-              if [[ -n "$source" ]]; then
-                pack="$candidate"
-                break
-              fi
-            done
-            if [[ -z "$source" ]]; then
-              pack="${candidates[0]}"
-              source="$(find "$TMP/$pack" -type f \( -iname '*.wav' -o -iname '*.aif' -o -iname '*.aiff' \) | sort | sed -n '1p')"
-            fi
-            if [[ -z "$source" ]]; then
-              echo "No audio source found for $output" >&2
+            local pack="$2"
+            local relative="$3"
+            local source="$TMP/$pack/$relative"
+            if [[ ! -f "$source" ]]; then
+              echo "Adobe source not found: $source" >&2
               exit 1
             fi
             ffmpeg -hide_banner -loglevel error -y -i "$source" -vn -ar 44100 -ac 2 -codec:a libmp3lame -b:a 112k "$OUT/$output.mp3"
-            printf '%s\t%s\t%s\n' "$output.mp3" "$pack" "${source#"$TMP/$pack/"}" >> "$OUT/SOURCES.tsv"
-            echo "$output <= $pack :: ${source#"$TMP/$pack/"}"
+            printf '%s\t%s\t%s\n' "$output.mp3" "$pack" "$relative" >> "$OUT/SOURCES.tsv"
+            echo "$output <= $pack :: $relative"
           }
 
-          pick ui_click multimedia '(button|click|select|confirm|interface|menu|beep)'
-          pick board_move cartoon '(whoosh|swoosh|swish|slide|zip|move)'
-          pick tile_merge cartoon,multimedia '(pop|pluck|boing|chime|ding|bell|ping)'
-          pick combo multimedia,cartoon '(success|bonus|score|chime|positive|notify|notification|ding)'
-          pick fever_start science_fiction,multimedia '(power.?up|activate|energy|charge|warp|riser|teleport)'
-          pick fever_end science_fiction,multimedia '(power.?down|shutdown|deactivate|descending|fall|fade)'
-          pick weapon_evolve science_fiction '(transform|power.?up|activate|charge|energy|upgrade)'
-          pick weapon_normal weapons '(pistol|handgun|single.?shot|rifle|gunshot)'
-          pick weapon_rapid weapons '(rapid|burst|automatic|pistol|rifle)'
-          pick weapon_machine_gun weapons '(machine.?gun|automatic|burst|rapid)'
-          pick weapon_piercing weapons '(sniper|rifle|arrow|crossbow)'
-          pick weapon_explosive weapons,science_fiction '(rocket|grenade|cannon|launcher|explosion|blast)'
-          pick weapon_laser science_fiction '(laser|beam|blaster|ray)'
-          pick impact crashes '(impact|hit|slam|thud|crash)'
-          pick enemy_kill cartoon,crashes '(splat|pop|smash|break|crash)'
-          pick boss_kill crashes,science_fiction '(explosion|crash|smash|destruction|impact|blast)'
-          pick boss_warning science_fiction,multimedia '(alarm|warning|alert|siren)'
-          pick wave multimedia '(notification|notify|chime|ding|success|positive)'
-          pick base_damage crashes '(heavy|impact|slam|thud|crash)'
-          pick game_over multimedia,science_fiction '(fail|error|negative|wrong|lose|shutdown|power.?down)'
+          pick_exact ui_click multimedia 'Multimedia/Multimedia Internet CD-Rom Flash Beep Electronic 01.wav'
+          pick_exact board_move cartoon 'Cartoon/Cartoon Trombone Slide 01.wav'
+          pick_exact tile_merge cartoon 'Cartoon/Cartoon Balloon Pop 01.wav'
+          pick_exact combo multimedia 'Multimedia/Multimedia Internet CD-Rom Flash Ding 01.wav'
+          pick_exact fever_start science_fiction 'Science Fiction/Science Fiction Sci-Fi Electronic  Energy Swell Fluttering 07.wav'
+          pick_exact fever_end science_fiction 'Science Fiction/Science Fiction Sci-Fi Electronic Alarm Descending 01.wav'
+          pick_exact weapon_evolve science_fiction 'Science Fiction/Science Fiction Sci-Fi Electronic Power Up37.wav'
+          pick_exact weapon_normal weapons 'Weapons/Weapon Gun Pistol 22 Caliber Single Shot Interior Shooting Range 01.wav'
+          pick_exact weapon_rapid weapons 'Weapons/Weapon Gun Pistol 45 Caliber Single Shot Interior Shooting Range 02.wav'
+          pick_exact weapon_machine_gun weapons 'Weapons/Weapon Gun Machine Gun 9mm Single Shot Interior Shooting Range 01.wav'
+          pick_exact weapon_piercing weapons 'Weapons/Weapon Arrow Shot 01.wav'
+          pick_exact weapon_explosive weapons 'Weapons/Weapon Cannon Fire 01.wav'
+          pick_exact weapon_laser science_fiction 'Science Fiction/Science Fiction Sci-Fi Laser Single Shot Short 01.wav'
+          pick_exact impact crashes 'Crashes/Crash Aluminum Tray Bang 02.wav'
+          pick_exact enemy_kill cartoon 'Cartoon/Cartoon Balloon Popping 04 .wav'
+          pick_exact boss_kill crashes 'Crashes/Crash Crash Metal Wood Heavy Thud 03.wav'
+          pick_exact boss_warning science_fiction 'Science Fiction/Science Fiction Sci-Fi Electronic Warning Siren Once 28.wav'
+          pick_exact wave multimedia 'Multimedia/Multimedia Internet CD-Rom Flash Beep Evolver 01.wav'
+          pick_exact base_damage crashes 'Crashes/Crash Brick On Pavement 01.wav'
+          pick_exact game_over multimedia 'Multimedia/Multimedia Internet CD-Rom Flash Window Close 01.wav'
 
           cat > "$OUT/README.md" <<'EOF'
           # Adobe Audition SFX used by 2048TD
@@ -122,7 +92,7 @@ jobs:
 
           Adobe states that the collection is royalty-free and that use/distribution is governed by the Adobe Audition EULA. The source Content Files must not be distributed on a standalone basis. These files are included only as integrated game assets for 2048TD.
 
-          `SOURCES.tsv` records the Adobe archive and original source filename used for each integrated asset.
+          `SOURCES.tsv` records the exact Adobe archive and original source filename used for each integrated asset. Selections are deterministic so the web assets can be reproduced.
           EOF
 
       - name: Commit selected SFX assets

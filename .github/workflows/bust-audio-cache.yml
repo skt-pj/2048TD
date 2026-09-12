@@ -1,0 +1,34 @@
+name: Bust audio settings cache
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/bust-audio-cache.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Patch cache keys
+        run: python3 .github/scripts/bust_audio_cache.py
+
+      - name: Commit cache keys
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/bust-audio-cache.yml .github/scripts/bust_audio_cache.py
+          git add docs/index.html docs/src/main.js docs/src/bootstrap.js
+          git commit -m 'Refresh web audio settings modules'
+          git pull --rebase origin main
+          git push origin HEAD:main

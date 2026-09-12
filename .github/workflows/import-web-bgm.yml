@@ -1,4 +1,4 @@
-name: Import web BGM
+name: Import uploaded BGM
 
 on:
   push:
@@ -18,79 +18,41 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      - name: Download source BGM from Suno
+      - name: Restore verified BGM from uploaded MP3 payload
         shell: bash
+        env:
+          TRANSFER_URL: "https://sdmntprkoreacentral.oaiusercontent.com/files/00000000-d2f4-8206-962d-5ee487645b18/raw?se=2026-09-12T05%3A47%3A31Z&sp=r&sv=2026-02-06&sr=b&scid=92627af6-3a53-59a1-8ab3-23414ccdd75d&skoid=03727f49-62d3-42ac-8350-1c0e6559d238&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-11T22%3A32%3A41Z&ske=2026-09-12T22%3A32%3A41Z&sks=b&skv=2026-02-06&sig=HRCrTf1yTe2kZnIZUjJmIMHwKsD2J7yqvNjxQvTAoCw%3D"
         run: |
           set -euo pipefail
-          mkdir -p /tmp/bgm docs/assets/audio
+          mkdir -p docs/assets/audio /tmp/bgm
+          curl --fail --silent --show-error --location "$TRANSFER_URL" -o /tmp/bgm/transfer.txt
+          echo '13e8a152ccb54edec2c63b0f3b8d46c0b5fe790afbab86013258fbeef8d95638  /tmp/bgm/transfer.txt' | sha256sum -c -
 
-          download_clip() {
-            local clip_id="$1"
-            local output="$2"
-            local metadata audio_url
-
-            metadata="$(curl --fail --silent --show-error --location \
-              --retry 4 --retry-delay 2 --retry-all-errors \
-              -A 'Mozilla/5.0' \
-              -H 'Accept: application/json' \
-              -e 'https://suno.com/' \
-              "https://studio-api-prod.suno.com/api/clip/${clip_id}")"
-
-            audio_url="$(python3 -c 'import json,sys; print(json.load(sys.stdin).get("audio_url", ""))' <<<"$metadata")"
-            if [ -z "$audio_url" ]; then
-              echo "Suno metadata did not include audio_url for ${clip_id}" >&2
-              exit 1
-            fi
-
-            curl --fail --silent --show-error --location \
-              --retry 4 --retry-delay 2 --retry-all-errors \
-              -A 'Mozilla/5.0' \
-              -e 'https://suno.com/' \
-              "$audio_url" \
-              --output "$output"
-            test -s "$output"
+          python3 - <<'PY'
+          import base64, hashlib, json, pathlib
+          src = pathlib.Path('/tmp/bgm/transfer.txt')
+          payload = json.loads(src.read_text())
+          expected = {
+              'default.ogg': (395563, '329f79d7840508c78292043c74be38a7370597a4a482511b2e34faa7e01b78fe'),
+              'fiver.ogg': (344254, 'c92c81a14b0fcf019e8a555534d4a6081f1b887c9324dff79161b169a93156bb'),
           }
-
-          download_clip 'e77efb54-7aa0-41d6-adf3-e11bb56f0877' /tmp/bgm/default.mp3
-          download_clip '9bd397e9-5ddf-49de-b6da-ca7832c9e7fe' /tmp/bgm/fiver.mp3
-
-          ffprobe -v error -select_streams a:0 -show_entries stream=codec_name,channels -of default=nw=1 /tmp/bgm/default.mp3
-          ffprobe -v error -select_streams a:0 -show_entries stream=codec_name,channels -of default=nw=1 /tmp/bgm/fiver.mp3
-
-      - name: Encode optimized Ogg BGM
-        shell: bash
-        run: |
-          set -euo pipefail
-          ffmpeg -hide_banner -loglevel error -y -i /tmp/bgm/default.mp3 \
-            -map_metadata -1 -vn -c:a libopus -b:a 32k -vbr on -compression_level 10 \
-            -application audio -ar 48000 -ac 2 docs/assets/audio/default.ogg
-          ffmpeg -hide_banner -loglevel error -y -i /tmp/bgm/fiver.mp3 \
-            -map_metadata -1 -vn -c:a libopus -b:a 32k -vbr on -compression_level 10 \
-            -application audio -ar 48000 -ac 2 docs/assets/audio/fiver.ogg
-
-          default_size="$(stat -c%s docs/assets/audio/default.ogg)"
-          fiver_size="$(stat -c%s docs/assets/audio/fiver.ogg)"
-          test "$default_size" -gt 250000
-          test "$fiver_size" -gt 250000
-
-          default_duration="$(ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 docs/assets/audio/default.ogg)"
-          fiver_duration="$(ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 docs/assets/audio/fiver.ogg)"
-          python3 - "$default_duration" "$fiver_duration" <<'PY'
-          import sys
-          default_duration = float(sys.argv[1])
-          fiver_duration = float(sys.argv[2])
-          if not (85.0 <= default_duration <= 95.0):
-              raise SystemExit(f"Unexpected default BGM duration: {default_duration}")
-          if not (77.0 <= fiver_duration <= 86.0):
-              raise SystemExit(f"Unexpected fiver BGM duration: {fiver_duration}")
+          outdir = pathlib.Path('docs/assets/audio')
+          for name, (size, sha) in expected.items():
+              item = payload[name]
+              data = base64.b64decode(item['base64'], validate=True)
+              assert len(data) == size, (name, len(data), size)
+              assert hashlib.sha256(data).hexdigest() == sha, name
+              (outdir / name).write_bytes(data)
           PY
 
-          ffprobe -v error -select_streams a:0 -show_entries stream=codec_name,channels -of default=nw=1 docs/assets/audio/default.ogg
-          ffprobe -v error -select_streams a:0 -show_entries stream=codec_name,channels -of default=nw=1 docs/assets/audio/fiver.ogg
-          sha256sum docs/assets/audio/default.ogg docs/assets/audio/fiver.ogg
-          ls -lh docs/assets/audio/default.ogg docs/assets/audio/fiver.ogg
+          echo '329f79d7840508c78292043c74be38a7370597a4a482511b2e34faa7e01b78fe  docs/assets/audio/default.ogg' | sha256sum -c -
+          echo 'c92c81a14b0fcf019e8a555534d4a6081f1b887c9324dff79161b169a93156bb  docs/assets/audio/fiver.ogg' | sha256sum -c -
+          test "$(stat -c%s docs/assets/audio/default.ogg)" = 395563
+          test "$(stat -c%s docs/assets/audio/fiver.ogg)" = 344254
+          test "$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of default=nw=1:nk=1 docs/assets/audio/default.ogg)" = opus
+          test "$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of default=nw=1:nk=1 docs/assets/audio/fiver.ogg)" = opus
 
-      - name: Commit final BGM assets and remove importer
+      - name: Commit BGM and remove temporary importer
         shell: bash
         run: |
           set -euo pipefail
@@ -98,6 +60,6 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add docs/assets/audio/default.ogg docs/assets/audio/fiver.ogg
           git rm -r .bgm-import .github/workflows/import-web-bgm.yml
-          git commit -m 'Add verified web BGM assets'
+          git commit -m 'Add uploaded web BGM assets'
           git pull --rebase origin main
           git push origin HEAD:main

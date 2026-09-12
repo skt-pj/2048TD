@@ -7,6 +7,11 @@ const EN = {
   leftHand: "Left hand", leftHandDescription: "2048 on the left", rightHand: "Right hand", rightHandDescription: "2048 on the right",
   portraitUnchanged: "Portrait layout is unchanged.", soundEffects: "Sound effects", soundEffectsDescription: "Enable or disable game sound effects.",
   soundEffectsOn: "ON", soundEffectsOff: "OFF", soundEffectsVolume: "Volume", done: "Done", restartGame: "Restart game",
+  ranking: "RANKING", openRanking: "Open ranking", closeRanking: "Close ranking", refreshRanking: "Refresh ranking",
+  globalRank: "GLOBAL RANK", top100: "TOP 100", myRank: "MY RANK", you: "YOU", maxTile: "MAX TILE",
+  loadingRanking: "Loading ranking…", rankingUnavailable: "Ranking is unavailable", noRankingEntries: "No ranking entries yet",
+  updatingRank: "Updating…", rankUnavailable: "Rank unavailable", unranked: "UNRANKED", newPersonalBest: "NEW PERSONAL BEST",
+  outOf: "OUT OF", playToRank: "Finish a game to enter the ranking",
 };
 const JA = {
   restart: "リスタート", hp: "HP", wave: "WAVE", score: "SCORE", totalHp: "TOTAL HP",
@@ -17,5 +22,10 @@ const JA = {
   leftHand: "左手モード", leftHandDescription: "2048を左側に配置", rightHand: "右手モード", rightHandDescription: "2048を右側に配置",
   portraitUnchanged: "縦画面のレイアウトには影響しません。", soundEffects: "効果音", soundEffectsDescription: "ゲームの効果音をオン・オフします。",
   soundEffectsOn: "オン", soundEffectsOff: "オフ", soundEffectsVolume: "音量", done: "完了", restartGame: "ゲームをリスタート",
+  ranking: "ランキング", openRanking: "ランキングを開く", closeRanking: "ランキングを閉じる", refreshRanking: "ランキングを更新",
+  globalRank: "総合順位", top100: "TOP 100", myRank: "自分の順位", you: "あなた", maxTile: "最大タイル",
+  loadingRanking: "ランキングを読み込み中…", rankingUnavailable: "ランキングを取得できません", noRankingEntries: "ランキングデータがありません",
+  updatingRank: "順位を更新中…", rankUnavailable: "順位を取得できません", unranked: "未登録", newPersonalBest: "自己ベスト更新",
+  outOf: "参加者", playToRank: "ゲームを完走するとランキングに登録されます",
 };
 export function strings(locale) { return String(locale).toLowerCase().startsWith("ja") ? JA : EN; }

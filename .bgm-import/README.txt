@@ -1,0 +1,1 @@
+Binary upload staging placeholder. The actual game BGM files are created from the user-provided MP3s and committed directly as Git blobs; no Suno download is used.

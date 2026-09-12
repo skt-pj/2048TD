@@ -5,6 +5,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT_DIR="${1:-$ROOT_DIR/build/playables}"
 ZIP_PATH="${2:-$ROOT_DIR/build/2048TD-playables.zip}"
 
+node --experimental-default-type=module "$ROOT_DIR/ci/test-vfx-phase0.mjs"
+
 rm -rf "$OUT_DIR"
 mkdir -p "$OUT_DIR" "$(dirname "$ZIP_PATH")"
 cp -R "$ROOT_DIR/docs/." "$OUT_DIR/"
@@ -16,12 +18,13 @@ rm -f \
   "$OUT_DIR/src/ranking_transport.js"
 
 # Use a Playables-only bootstrap with no standalone ranking code path.
-cat > "$OUT_DIR/src/bootstrap.js" <<'EOF'
+cat > "$OUT_DIR/src/bootstrap.js" <<'PLAYABLES_BOOTSTRAP'
+import "./vfx_phase0.js?v=vfx-phase0-1";
 import "./audio.js?v=youtube-platform-1";
 import "./bgm.js?v=youtube-platform-1";
 import "./help.js?v=settings-help-1";
 import "./main.js?v=youtube-platform-3";
-EOF
+PLAYABLES_BOOTSTRAP
 
 # The shared game module contains a standalone-browser ranking initializer.
 # Replace only that initializer in the Playables artifact so the submitted code

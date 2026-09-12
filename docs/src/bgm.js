@@ -1,3 +1,5 @@
+import { subscribePlatformAudio, subscribePlatformPause } from "./platform_state.js";
+
 const TRACKS = Object.freeze({
   normal: {
     src: new URL("../assets/audio/default.mp3", import.meta.url).href,
@@ -30,12 +32,13 @@ class BgmController {
     this.unlocked = false;
     this.suspended = false;
     this.enabled = true;
+    this.platformAudioEnabled = true;
     this.masterVolume = 1;
     this.fadeFrame = 0;
   }
 
   targetVolume(name) {
-    return this.enabled ? TRACKS[name].volume * this.masterVolume : 0;
+    return this.enabled && this.platformAudioEnabled ? TRACKS[name].volume * this.masterVolume : 0;
   }
 
   setPreferences(preferences) {
@@ -48,7 +51,7 @@ class BgmController {
 
     cancelAnimationFrame(this.fadeFrame);
 
-    if (!this.enabled) {
+    if (!this.enabled || !this.platformAudioEnabled) {
       for (const audio of Object.values(this.tracks)) {
         audio.pause();
         audio.volume = 0;
@@ -69,6 +72,21 @@ class BgmController {
     if (!current.paused) current.volume = this.targetVolume(this.current);
   }
 
+  setPlatformAudioEnabled(enabled) {
+    const next = enabled !== false;
+    if (next === this.platformAudioEnabled) return;
+    this.platformAudioEnabled = next;
+    cancelAnimationFrame(this.fadeFrame);
+    if (!next) {
+      for (const audio of Object.values(this.tracks)) {
+        audio.pause();
+        audio.volume = 0;
+      }
+      return;
+    }
+    if (this.unlocked && !this.suspended && this.enabled) void this.playCurrent(false);
+  }
+
   preload() {
     this.tracks.normal.load();
     this.tracks.fever.load();
@@ -81,7 +99,7 @@ class BgmController {
   }
 
   async playCurrent(restart = false) {
-    if (!this.unlocked || this.suspended || !this.enabled) return;
+    if (!this.unlocked || this.suspended || !this.enabled || !this.platformAudioEnabled) return;
     const audio = this.tracks[this.current];
     if (restart) audio.currentTime = 0;
     audio.volume = this.targetVolume(this.current);
@@ -97,7 +115,7 @@ class BgmController {
     if (!(mode in this.tracks) || mode === this.current) return;
     const previous = this.current;
     this.current = mode;
-    if (!this.unlocked || this.suspended || !this.enabled) return;
+    if (!this.unlocked || this.suspended || !this.enabled || !this.platformAudioEnabled) return;
     this.crossfade(previous, mode);
   }
 
@@ -120,7 +138,7 @@ class BgmController {
 
     const startedAt = performance.now();
     const step = (now) => {
-      if (!this.enabled || this.suspended) {
+      if (!this.enabled || !this.platformAudioEnabled || this.suspended) {
         from.pause();
         to.pause();
         from.volume = 0;
@@ -170,14 +188,16 @@ class BgmController {
 const controller = new BgmController();
 const app = document.getElementById("app");
 const gameOver = document.getElementById("game-over");
+const inYouTube = typeof globalThis.ytgame !== "undefined" && Boolean(globalThis.ytgame.IN_PLAYABLES_ENV);
 let gameOverWasVisible = gameOver ? !gameOver.hidden : false;
+let platformPaused = false;
 
 export function setBgmPreferences(preferences) {
   controller.setPreferences(preferences);
 }
 
 function gameShouldPause() {
-  return document.hidden || !gameOver?.hidden;
+  return platformPaused || !gameOver?.hidden || (!inYouTube && document.hidden);
 }
 
 function syncPlaybackState() {
@@ -189,12 +209,18 @@ function syncFeverMode() {
   controller.setMode(app?.classList.contains("fever-active") ? "fever" : "normal");
 }
 
+subscribePlatformAudio((enabled) => controller.setPlatformAudioEnabled(enabled));
+subscribePlatformPause((paused) => {
+  platformPaused = paused;
+  syncPlaybackState();
+});
+
 controller.preload();
 
 const unlock = () => controller.unlock();
 document.addEventListener("pointerdown", unlock, { passive: true });
 document.addEventListener("keydown", unlock);
-document.addEventListener("visibilitychange", syncPlaybackState);
+if (!inYouTube) document.addEventListener("visibilitychange", syncPlaybackState);
 
 if (app) {
   new MutationObserver(syncFeverMode).observe(app, {

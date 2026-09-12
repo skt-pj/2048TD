@@ -1,3 +1,0 @@
-build=mp3-compat
-source=docs/assets/audio/*.ogg
-bitrate=96k

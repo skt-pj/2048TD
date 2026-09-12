@@ -1,5 +1,6 @@
 import "./audio.js?v=youtube-platform-1";
 import "./bgm.js?v=youtube-platform-1";
+import "./help.js?v=settings-help-1";
 
 const inYouTube = typeof globalThis.ytgame !== "undefined" && Boolean(globalThis.ytgame.IN_PLAYABLES_ENV);
 

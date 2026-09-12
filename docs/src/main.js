@@ -1,12 +1,12 @@
 import { GameEngine } from "./game_engine.js";
 import { PlayablesBridge } from "./playables.js";
-import { strings } from "./i18n.js";
+import { strings } from "./i18n.js?v=audio-controls-2";
 import { renderBattle, renderBoard, renderComboFever, renderWeaponStrip } from "./renderer.js";
 import { isLandscapeViewport, screenDirectionToLogical } from "./orientation.js";
 import { feverActive } from "./combo_fever.js";
-import { LandscapeHand, normalizePreferences } from "./preferences.js";
+import { LandscapeHand, normalizePreferences } from "./preferences.js?v=audio-controls-2";
 import { setSfxPreferences } from "./audio.js";
-import { setBgmPreferences } from "./bgm.js?v=audio-controls-1";
+import { setBgmPreferences } from "./bgm.js?v=audio-controls-2";
 import { WebRankingController } from "./ranking.js";
 
 const WEB_APP_VERSION = "0.1.7";

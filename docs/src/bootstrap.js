@@ -1,3 +1,4 @@
+import "./vfx_phase0.js?v=vfx-phase0-1";
 import "./audio.js?v=youtube-platform-1";
 import "./bgm.js?v=youtube-platform-1";
 import "./help.js?v=settings-help-1";

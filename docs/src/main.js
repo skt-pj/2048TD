@@ -6,6 +6,10 @@ import { isLandscapeViewport, screenDirectionToLogical } from "./orientation.js"
 import { feverActive } from "./combo_fever.js";
 import { LandscapeHand, normalizePreferences } from "./preferences.js";
 import { setSfxPreferences } from "./audio.js";
+import { WebRankingController } from "./ranking.js";
+
+const WEB_APP_VERSION = "0.1.7";
+const WEB_VERSION_CODE = 8;
 
 const bridge = new PlayablesBridge();
 const engine = new GameEngine();
@@ -13,6 +17,7 @@ let bestScore = 0;
 let systemPaused = false;
 let settingsOpen = false;
 let preferences = normalizePreferences(null);
+let ranking = null;
 let raf = 0;
 let lastTime = 0;
 let text = strings("en-US");
@@ -63,10 +68,11 @@ function applyStrings() {
   $("sound-effects-volume-label").textContent = text.soundEffectsVolume;
   $("settings-restart").textContent = text.restartGame;
   $("settings-done").textContent = text.done;
+  ranking?.setText(text);
 }
 
 function gamePaused() {
-  return systemPaused || settingsOpen;
+  return systemPaused || settingsOpen || Boolean(ranking?.isOpen);
 }
 
 function updatePreferenceUi() {
@@ -106,7 +112,7 @@ function setSoundEffectsVolume(percent, persist) {
 }
 
 function openSettings() {
-  if (settingsOpen) return;
+  if (settingsOpen || ranking?.isOpen) return;
   settingsOpen = true;
   cancelAnimationFrame(raf);
   settingsOverlay.hidden = false;
@@ -201,15 +207,26 @@ function render() {
 
 async function saveProgress() {
   bestScore = Math.max(bestScore, engine.state.score);
-  await bridge.save({ version: 3, bestScore, settings: preferences, run: engine.serialize() });
+  await bridge.save({
+    version: 4,
+    bestScore,
+    settings: preferences,
+    run: engine.serialize(),
+    ranking: ranking?.snapshot() ?? null,
+  });
 }
 
 async function reportGameOver() {
   if (gameOverReported || !engine.state.gameOverReason) return;
   gameOverReported = true;
-  bestScore = Math.max(bestScore, engine.state.score);
+  const completedState = engine.snapshot();
+  bestScore = Math.max(bestScore, completedState.score);
   await saveProgress();
-  await bridge.sendScore(bestScore);
+  await Promise.allSettled([
+    bridge.sendScore(bestScore),
+    ranking?.reportGameOver(completedState),
+  ]);
+  await saveProgress();
 }
 
 function loop(timestamp) {
@@ -239,6 +256,7 @@ function syncUiEventBaselines() {
 function newGame() {
   engine.reset();
   gameOverReported = false;
+  ranking?.newGame();
   syncUiEventBaselines();
   render();
   saveProgress();
@@ -269,7 +287,7 @@ function installInput() {
   };
   boardEl.addEventListener("keydown", handleKey);
   document.addEventListener("keydown", (event) => {
-    if (settingsOpen || document.activeElement === boardEl) return;
+    if (settingsOpen || ranking?.isOpen || document.activeElement === boardEl) return;
     handleKey(event);
   });
 
@@ -303,7 +321,8 @@ function installInput() {
   $("sound-effects-volume").addEventListener("change", (event) => setSoundEffectsVolume(event.currentTarget.value, true));
   $("play-again").addEventListener("click", newGame);
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && settingsOpen) {
+    if (event.key !== "Escape" || ranking?.isOpen) return;
+    if (settingsOpen) {
       event.preventDefault();
       closeSettings();
     }
@@ -316,6 +335,18 @@ async function initialize() {
   bridge.firstFrameReady();
   const [locale, saved] = await Promise.all([bridge.getLanguage(), bridge.load()]);
   text = strings(locale);
+  ranking = new WebRankingController({
+    enabled: !bridge.inYouTube,
+    text,
+    appVersion: WEB_APP_VERSION,
+    versionCode: WEB_VERSION_CODE,
+    onOpenChange: (open) => {
+      if (open) cancelAnimationFrame(raf);
+      else startLoop();
+    },
+    onPersist: () => { void saveProgress(); },
+  });
+  ranking.restore(saved?.ranking);
   applyStrings();
   if (saved && typeof saved === "object") {
     bestScore = Math.max(0, Number(saved.bestScore) || 0);
@@ -323,12 +354,16 @@ async function initialize() {
     if (saved.run) engine.restore(saved.run);
   }
   updatePreferenceUi();
+  installInput();
+  ranking.install();
   if (engine.state.gameOverReason) {
     engine.reset();
     gameOverReported = false;
+    ranking.newGame();
+  } else {
+    void ranking.ensureRun();
   }
   syncUiEventBaselines();
-  installInput();
   bridge.installSystemHandlers({
     onPause: () => {
       systemPaused = true;

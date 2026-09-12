@@ -1,13 +1,12 @@
 import { GameEngine } from "./game_engine.js";
-import { PlayablesBridge } from "./playables.js";
+import { PlayablesBridge } from "./playables.js?v=youtube-platform-1";
 import { strings } from "./i18n.js?v=audio-controls-2";
 import { renderBattle, renderBoard, renderComboFever, renderWeaponStrip } from "./renderer.js";
 import { isLandscapeViewport, screenDirectionToLogical } from "./orientation.js";
 import { feverActive } from "./combo_fever.js";
 import { LandscapeHand, normalizePreferences } from "./preferences.js?v=audio-controls-2";
-import { setSfxPreferences } from "./audio.js";
-import { setBgmPreferences } from "./bgm.js?v=audio-controls-2";
-import { WebRankingController } from "./ranking.js";
+import { setSfxPreferences } from "./audio.js?v=youtube-platform-1";
+import { setBgmPreferences } from "./bgm.js?v=youtube-platform-1";
 
 const WEB_APP_VERSION = "0.1.7";
 const WEB_VERSION_CODE = 8;
@@ -261,7 +260,7 @@ function loop(timestamp) {
   const beforeWave = engine.state.wave;
   const result = engine.tick(delta);
   render();
-  if (engine.state.wave !== beforeWave || result.gameOver) saveProgress();
+  if (engine.state.wave !== beforeWave || result.scoreChanged || result.gameOver) saveProgress();
   if (result.gameOver) reportGameOver();
   raf = requestAnimationFrame(loop);
 }
@@ -359,12 +358,20 @@ function installInput() {
   globalThis.addEventListener("orientationchange", () => setTimeout(render, 60), { passive: true });
 }
 
-async function initialize() {
-  bridge.firstFrameReady();
-  const [locale, saved] = await Promise.all([bridge.getLanguage(), bridge.load()]);
-  text = strings(locale);
+function hideStandaloneRankingUi() {
+  $("ranking-button").hidden = true;
+  $("game-over-ranking").hidden = true;
+  $("game-over-rank-card").hidden = true;
+}
+
+async function initializeRanking(saved) {
+  if (bridge.inYouTube) {
+    hideStandaloneRankingUi();
+    return;
+  }
+  const { WebRankingController } = await import("./ranking.js?v=standalone-ranking-1");
   ranking = new WebRankingController({
-    enabled: !bridge.inYouTube,
+    enabled: true,
     text,
     appVersion: WEB_APP_VERSION,
     versionCode: WEB_VERSION_CODE,
@@ -375,6 +382,13 @@ async function initialize() {
     onPersist: () => { void saveProgress(); },
   });
   ranking.restore(saved?.ranking);
+}
+
+async function initialize() {
+  bridge.firstFrameReady();
+  const [locale, saved] = await Promise.all([bridge.getLanguage(), bridge.load()]);
+  text = strings(locale);
+  await initializeRanking(saved);
   applyStrings();
   if (saved && typeof saved === "object") {
     bestScore = Math.max(0, Number(saved.bestScore) || 0);
@@ -383,12 +397,12 @@ async function initialize() {
   }
   updatePreferenceUi();
   installInput();
-  ranking.install();
+  ranking?.install();
   if (engine.state.gameOverReason) {
     engine.reset();
     gameOverReported = false;
-    ranking.newGame();
-  } else {
+    ranking?.newGame();
+  } else if (ranking) {
     void ranking.ensureRun();
   }
   syncUiEventBaselines();

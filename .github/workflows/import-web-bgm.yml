@@ -30,16 +30,14 @@ jobs:
 
           python3 - <<'PY'
           import base64, hashlib, json, pathlib
-          src = pathlib.Path('/tmp/bgm/transfer.txt')
-          payload = json.loads(src.read_text())
+          payload = json.loads(pathlib.Path('/tmp/bgm/transfer.txt').read_text())
           expected = {
               'default.ogg': (395563, '329f79d7840508c78292043c74be38a7370597a4a482511b2e34faa7e01b78fe'),
               'fiver.ogg': (344254, 'c92c81a14b0fcf019e8a555534d4a6081f1b887c9324dff79161b169a93156bb'),
           }
           outdir = pathlib.Path('docs/assets/audio')
           for name, (size, sha) in expected.items():
-              item = payload[name]
-              data = base64.b64decode(item['base64'], validate=True)
+              data = base64.b64decode(payload[name]['base64'], validate=True)
               assert len(data) == size, (name, len(data), size)
               assert hashlib.sha256(data).hexdigest() == sha, name
               (outdir / name).write_bytes(data)
@@ -49,8 +47,6 @@ jobs:
           echo 'c92c81a14b0fcf019e8a555534d4a6081f1b887c9324dff79161b169a93156bb  docs/assets/audio/fiver.ogg' | sha256sum -c -
           test "$(stat -c%s docs/assets/audio/default.ogg)" = 395563
           test "$(stat -c%s docs/assets/audio/fiver.ogg)" = 344254
-          test "$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of default=nw=1:nk=1 docs/assets/audio/default.ogg)" = opus
-          test "$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of default=nw=1:nk=1 docs/assets/audio/fiver.ogg)" = opus
 
       - name: Commit BGM and remove temporary importer
         shell: bash

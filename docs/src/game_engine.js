@@ -197,11 +197,7 @@ export class GameEngine {
     const hits = [];
     const moving = [];
     for (const projectile of this.state.projectiles) {
-      const ignoreLaneRestriction = Boolean(projectile.ignoresLaneRestriction);
-      const existing = this.state.enemies.find(
-        (enemy) => enemy.id === projectile.targetEnemyId && canAttack(projectile.sourceColumn, enemy, ignoreLaneRestriction),
-      );
-      const target = existing ?? selectTarget(projectile.sourceColumn, this.state.enemies, ignoreLaneRestriction);
+      const target = selectProjectileTarget(projectile, this.state.enemies);
       if (!target) continue;
       const tx = this.enemyX(target);
       const ty = target.progress;
@@ -285,6 +281,15 @@ export class GameEngine {
 
   turretPosition(column) { return { x: (column + 0.5) / GRID_SIZE, y: 0.955 }; }
   enemyX(enemy) { return enemy.enemyType === "BOSS" ? 0.5 : (enemy.lane + 0.5) / GRID_SIZE; }
+}
+
+function selectProjectileTarget(projectile, enemies) {
+  const ignoreLaneRestriction = Boolean(projectile.ignoresLaneRestriction);
+  const existing = enemies.find(
+    (enemy) => enemy.id === projectile.targetEnemyId && canAttack(projectile.sourceColumn, enemy, ignoreLaneRestriction),
+  );
+  if (existing || ignoreLaneRestriction) return existing ?? null;
+  return selectTarget(projectile.sourceColumn, enemies, false);
 }
 
 export const CURRENT_MAX_HP = MAX_HP;

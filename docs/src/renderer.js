@@ -60,17 +60,46 @@ const WEAPON_SPRITES = {
   },
 };
 
-const weaponImages = new Map();
+const NORMAL_ENEMY_ATLAS = new URL("../assets/sprites/enemies/enemy_normal_atlas.png", import.meta.url).href;
+const BOSS_ENEMY_ATLAS = new URL("../assets/sprites/enemies/enemy_boss_atlas.png", import.meta.url).href;
 
-function weaponImage(src) {
-  let image = weaponImages.get(src);
+const ENEMY_SPRITES = {
+  E01: { frameSize: 64, move: { row: 0, frames: 8, fps: 10 }, hit: { row: 1, frames: 3, fps: 12 }, death: { row: 2, frames: 5, fps: 10 } },
+  E02: { frameSize: 64, move: { row: 3, frames: 6, fps: 12 }, hit: { row: 4, frames: 3, fps: 12 }, death: { row: 5, frames: 5, fps: 10 } },
+  E03: { frameSize: 64, move: { row: 6, frames: 6, fps: 8 }, hit: { row: 7, frames: 3, fps: 10 }, death: { row: 8, frames: 5, fps: 8 } },
+  E04: { frameSize: 64, move: { row: 9, frames: 6, fps: 10 }, hit: { row: 10, frames: 3, fps: 12 }, death: { row: 11, frames: 5, fps: 10 } },
+  B01: { frameSize: 128, idle: { row: 0, frames: 6, fps: 6 }, move: { row: 1, frames: 8, fps: 8 }, attack: { row: 2, frames: 8, fps: 10 }, hit: { row: 3, frames: 4, fps: 10 }, death: { row: 4, frames: 8, fps: 8 } },
+  B02: { frameSize: 128, idle: { row: 5, frames: 8, fps: 8 }, move: { row: 6, frames: 6, fps: 8 }, attack: { row: 7, frames: 8, fps: 10 }, hit: { row: 8, frames: 4, fps: 10 }, death: { row: 9, frames: 8, fps: 8 } },
+};
+
+const weaponImages = new Map();
+const enemyImages = new Map();
+let lastBossSpriteId = "B01";
+
+function cachedImage(cache, src) {
+  let image = cache.get(src);
   if (!image) {
     image = new Image();
     image.decoding = "async";
     image.src = src;
-    weaponImages.set(src, image);
+    cache.set(src, image);
   }
   return image;
+}
+
+function weaponImage(src) { return cachedImage(weaponImages, src); }
+function enemyImage(src) { return cachedImage(enemyImages, src); }
+
+function normalSpriteId(lane) {
+  return `E0${Math.max(0, Math.min(3, lane)) + 1}`;
+}
+
+function bossSpriteId(enemyId) {
+  return Number(enemyId) % 2 === 0 ? "B02" : "B01";
+}
+
+function enemyAtlas(spriteId) {
+  return spriteId.startsWith("B") ? BOSS_ENEMY_ATLAS : NORMAL_ENEMY_ATLAS;
 }
 
 function resizeCanvas(canvas) {
@@ -113,12 +142,20 @@ export function renderBattle(canvas, state, landscape, landscapeHand = "left") {
     drawTurret(ctx, point.x, point.y, type, landscape, ready, fever, phase, landscapeHand);
   }
 
-  for (const enemy of state.enemies) drawEnemy(ctx, enemy, landscape, w, h, fever, phase, landscapeHand);
+  for (const enemy of state.enemies) {
+    const hit = latestHitForEnemy(enemy, state.vfxEvents ?? []);
+    drawEnemy(ctx, enemy, hit, landscape, w, h, fever, phase, landscapeHand);
+  }
   for (const projectile of state.projectiles) {
     const point = screenPoint(projectile.x, projectile.y, landscape, w, h, landscapeHand);
     drawProjectile(ctx, point.x, point.y, projectile.weaponType, landscape, fever, landscapeHand);
   }
-  for (const event of state.vfxEvents ?? []) drawImpact(ctx, event, state.elapsedSeconds, landscape, w, h, fever, landscapeHand);
+  for (const event of state.vfxEvents ?? []) {
+    if (event.type === "KILL" || event.type === "BOSS_KILL") {
+      drawEnemyDeath(ctx, event, state.elapsedSeconds, landscape, w, h, landscapeHand);
+    }
+    drawImpact(ctx, event, state.elapsedSeconds, landscape, w, h, fever, landscapeHand);
+  }
 
   if (fever) drawFeverAtmosphere(ctx, w, h, phase);
 }
@@ -183,17 +220,79 @@ function drawDefenseLine(ctx, w, h, landscape, fever, phase, landscapeHand) {
   } else ctx.fillText("DEFENSE LINE", 8, p0.y - 7);
 }
 
-function drawEnemy(ctx, enemy, landscape, w, h, fever, phase, landscapeHand) {
+function latestHitForEnemy(enemy, events) {
+  const logicalX = enemy.enemyType === "BOSS" ? .5 : (enemy.lane + .5) / GRID_SIZE;
+  let best = null;
+  let bestDistance = Infinity;
+  for (const event of events) {
+    if (event.type !== "HIT") continue;
+    const dx = Math.abs(event.x - logicalX);
+    const dy = Math.abs(event.y - enemy.progress);
+    if (dx > .02 || dy > .06) continue;
+    const distance = dx + dy;
+    if (distance < bestDistance || (distance === bestDistance && (!best || event.createdAtSeconds > best.createdAtSeconds))) {
+      best = event;
+      bestDistance = distance;
+    }
+  }
+  return best;
+}
+
+function spriteFrame(animation, seconds, loop) {
+  const raw = Math.max(0, Math.floor(seconds * animation.fps));
+  return loop ? raw % animation.frames : Math.min(animation.frames - 1, raw);
+}
+
+function drawEnemySprite(ctx, x, y, spriteId, animationName, seconds, displaySize, landscape, landscapeHand, loop = true) {
+  const spec = ENEMY_SPRITES[spriteId];
+  const animation = spec?.[animationName];
+  if (!spec || !animation) return false;
+  const image = enemyImage(enemyAtlas(spriteId));
+  if (!image.complete || image.naturalWidth <= 0) return false;
+  const frame = spriteFrame(animation, seconds, loop);
+  const sourceSize = spec.frameSize;
+  ctx.save();
+  ctx.translate(x, y);
+  if (landscape) ctx.rotate(landscapeHand === "right" ? -Math.PI / 2 : Math.PI / 2);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(
+    image,
+    frame * sourceSize,
+    animation.row * sourceSize,
+    sourceSize,
+    sourceSize,
+    -displaySize / 2,
+    -displaySize / 2,
+    displaySize,
+    displaySize,
+  );
+  ctx.restore();
+  return true;
+}
+
+function drawEnemy(ctx, enemy, hitEvent, landscape, w, h, fever, phase, landscapeHand) {
   const logicalX = enemy.enemyType === "BOSS" ? .5 : (enemy.lane + .5) / GRID_SIZE;
   const point = screenPoint(logicalX, enemy.progress, landscape, w, h, landscapeHand);
   const base = Math.min(w, h);
   const r = enemy.enemyType === "BOSS" ? Math.max(18, base * .065) : Math.max(10, base * .033);
   const color = enemy.enemyType === "BOSS" ? COLORS.pink : COLORS.red;
   const pulse = .7 + .3 * Math.sin(phase * 7 + enemy.id);
-  ctx.fillStyle = enemy.enemyType === "BOSS" ? `rgba(255,53,211,${.10 + .08*pulse})` : "rgba(255,59,88,.10)";
-  ctx.beginPath(); ctx.arc(point.x, point.y, r * 1.65, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = color; ctx.beginPath(); ctx.arc(point.x, point.y, r, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = "rgba(255,255,255,.72)"; ctx.beginPath(); ctx.arc(point.x, point.y, r * .28, 0, Math.PI * 2); ctx.fill();
+  const spriteId = enemy.enemyType === "BOSS" ? bossSpriteId(enemy.id) : normalSpriteId(enemy.lane);
+  if (enemy.enemyType === "BOSS") lastBossSpriteId = spriteId;
+  const hitSpec = ENEMY_SPRITES[spriteId]?.hit;
+  const hitAge = hitEvent ? Math.max(0, phase - hitEvent.createdAtSeconds) : Infinity;
+  const hitDuration = hitSpec ? hitSpec.frames / hitSpec.fps : 0;
+  const animationName = hitAge < hitDuration ? "hit" : "move";
+  const animationTime = animationName === "hit" ? hitAge : phase + enemy.id * .071;
+  const displaySize = enemy.enemyType === "BOSS" ? Math.max(72, r * 3) : Math.max(36, r * 3);
+
+  const drawn = drawEnemySprite(ctx, point.x, point.y, spriteId, animationName, animationTime, displaySize, landscape, landscapeHand, animationName === "move");
+  if (!drawn) {
+    ctx.fillStyle = enemy.enemyType === "BOSS" ? `rgba(255,53,211,${.10 + .08*pulse})` : "rgba(255,59,88,.10)";
+    ctx.beginPath(); ctx.arc(point.x, point.y, r * 1.65, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = color; ctx.beginPath(); ctx.arc(point.x, point.y, r, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,.72)"; ctx.beginPath(); ctx.arc(point.x, point.y, r * .28, 0, Math.PI * 2); ctx.fill();
+  }
 
   const ratio = Math.max(0, Math.min(1, enemy.hp / enemy.maxHp));
   const bw = r * 2.4;
@@ -208,13 +307,24 @@ function drawEnemy(ctx, enemy, landscape, w, h, fever, phase, landscapeHand) {
     ctx.fillStyle = "#101820"; ctx.fillRect(x, y, bw, bh);
     ctx.fillStyle = COLORS.lime; ctx.fillRect(x, y, bw * ratio, bh);
   }
-  if (enemy.enemyType === "BOSS") {
-    ctx.fillStyle = COLORS.white; ctx.font = "900 10px system-ui"; ctx.textAlign = "center"; ctx.fillText("BOSS", point.x, point.y + 3); ctx.textAlign = "start";
-  }
   if (fever) {
     ctx.strokeStyle = `rgba(255,255,255,${.35 + .25*pulse})`; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.arc(point.x, point.y, r * 1.16, 0, Math.PI * 2); ctx.stroke();
   }
+}
+
+function drawEnemyDeath(ctx, event, elapsed, landscape, w, h, landscapeHand) {
+  const age = Math.max(0, elapsed - event.createdAtSeconds);
+  const isBoss = event.type === "BOSS_KILL";
+  const lane = Math.max(0, Math.min(3, Math.floor(event.x * GRID_SIZE)));
+  const spriteId = isBoss ? lastBossSpriteId : normalSpriteId(lane);
+  const spec = ENEMY_SPRITES[spriteId]?.death;
+  if (!spec || age > spec.frames / spec.fps) return;
+  const point = screenPoint(event.x, event.y, landscape, w, h, landscapeHand);
+  const base = Math.min(w, h);
+  const r = isBoss ? Math.max(18, base * .065) : Math.max(10, base * .033);
+  const displaySize = isBoss ? Math.max(72, r * 3) : Math.max(36, r * 3);
+  drawEnemySprite(ctx, point.x, point.y, spriteId, "death", age, displaySize, landscape, landscapeHand, false);
 }
 
 function drawWeaponFrame(ctx, type, readyRatio, phase) {

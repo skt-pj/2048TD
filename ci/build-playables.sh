@@ -5,7 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT_DIR="${1:-$ROOT_DIR/build/playables}"
 ZIP_PATH="${2:-$ROOT_DIR/build/2048TD-playables.zip}"
 
-node "$ROOT_DIR/ci/test-vfx-phase0.mjs"
+node --experimental-default-type=module "$ROOT_DIR/ci/test-vfx-phase0.mjs"
 
 rm -rf "$OUT_DIR"
 mkdir -p "$OUT_DIR" "$(dirname "$ZIP_PATH")"

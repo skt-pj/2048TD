@@ -114,9 +114,28 @@
 
           <div class="sound-volume-row">
             <label id="sound-effects-volume-label" for="sound-effects-volume">Volume</label>
-            <output id="sound-effects-volume-value" for="sound-effects-volume">100%</output>
+            <output id="sound-effects-volume-value" for="sound-effects-volume">30%</output>
           </div>
-          <input id="sound-effects-volume" class="sound-volume" type="range" min="0" max="100" step="1" value="100" aria-labelledby="sound-effects-volume-label" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
+          <input id="sound-effects-volume" class="sound-volume" type="range" min="0" max="100" step="1" value="30" aria-labelledby="sound-effects-volume-label" aria-valuemin="0" aria-valuemax="100" aria-valuenow="30">
+        </div>
+
+        <div class="settings-section settings-audio-section">
+          <div class="settings-section-title-row audio-title-row">
+            <div>
+              <h3 id="background-music-title">Background music</h3>
+              <p id="background-music-description">Enable or disable background music.</p>
+            </div>
+            <button id="background-music-toggle" class="sound-toggle" type="button" role="switch" aria-checked="true" aria-labelledby="background-music-title background-music-toggle-label">
+              <span class="sound-toggle-track" aria-hidden="true"><span class="sound-toggle-thumb"></span></span>
+              <span id="background-music-toggle-label" class="sound-toggle-label">ON</span>
+            </button>
+          </div>
+
+          <div class="sound-volume-row">
+            <label id="background-music-volume-label" for="background-music-volume">Volume</label>
+            <output id="background-music-volume-value" for="background-music-volume">100%</output>
+          </div>
+          <input id="background-music-volume" class="sound-volume" type="range" min="0" max="100" step="1" value="100" aria-labelledby="background-music-volume-label" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
         </div>
 
         <div class="settings-actions">
@@ -194,6 +213,6 @@
   </main>
 
   <script src="https://www.youtube.com/game_api/v1"></script>
-  <script type="module" src="./src/bootstrap.js?v=web-ranking-1"></script>
+  <script type="module" src="./src/bootstrap.js?v=audio-controls-1"></script>
 </body>
 </html>

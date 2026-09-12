@@ -6,6 +6,7 @@ import { isLandscapeViewport, screenDirectionToLogical } from "./orientation.js"
 import { feverActive } from "./combo_fever.js";
 import { LandscapeHand, normalizePreferences } from "./preferences.js";
 import { setSfxPreferences } from "./audio.js";
+import { setBgmPreferences } from "./bgm.js?v=audio-controls-1";
 import { WebRankingController } from "./ranking.js";
 
 const WEB_APP_VERSION = "0.1.7";
@@ -66,6 +67,9 @@ function applyStrings() {
   $("sound-effects-title").textContent = text.soundEffects;
   $("sound-effects-description").textContent = text.soundEffectsDescription;
   $("sound-effects-volume-label").textContent = text.soundEffectsVolume;
+  $("background-music-title").textContent = text.backgroundMusic;
+  $("background-music-description").textContent = text.backgroundMusicDescription;
+  $("background-music-volume-label").textContent = text.backgroundMusicVolume;
   $("settings-restart").textContent = text.restartGame;
   $("settings-done").textContent = text.done;
   ranking?.setText(text);
@@ -90,6 +94,15 @@ function updatePreferenceUi() {
   $("sound-effects-volume").setAttribute("aria-valuenow", String(volume));
   $("sound-effects-volume-value").textContent = `${volume}%`;
   setSfxPreferences(preferences);
+
+  const bgmToggle = $("background-music-toggle");
+  const bgmVolume = Math.round(preferences.bgmVolume * 100);
+  bgmToggle.setAttribute("aria-checked", String(preferences.bgmEnabled));
+  $("background-music-toggle-label").textContent = preferences.bgmEnabled ? text.backgroundMusicOn : text.backgroundMusicOff;
+  $("background-music-volume").value = String(bgmVolume);
+  $("background-music-volume").setAttribute("aria-valuenow", String(bgmVolume));
+  $("background-music-volume-value").textContent = `${bgmVolume}%`;
+  setBgmPreferences(preferences);
 }
 
 function setLandscapeHand(hand) {
@@ -107,6 +120,18 @@ function setSoundEffectsEnabled(enabled) {
 
 function setSoundEffectsVolume(percent, persist) {
   preferences = normalizePreferences({ ...preferences, sfxVolume: Number(percent) / 100 });
+  updatePreferenceUi();
+  if (persist) saveProgress();
+}
+
+function setBackgroundMusicEnabled(enabled) {
+  preferences = normalizePreferences({ ...preferences, bgmEnabled: enabled });
+  updatePreferenceUi();
+  saveProgress();
+}
+
+function setBackgroundMusicVolume(percent, persist) {
+  preferences = normalizePreferences({ ...preferences, bgmVolume: Number(percent) / 100 });
   updatePreferenceUi();
   if (persist) saveProgress();
 }
@@ -319,6 +344,9 @@ function installInput() {
   $("sound-effects-toggle").addEventListener("click", () => setSoundEffectsEnabled(!preferences.sfxEnabled));
   $("sound-effects-volume").addEventListener("input", (event) => setSoundEffectsVolume(event.currentTarget.value, false));
   $("sound-effects-volume").addEventListener("change", (event) => setSoundEffectsVolume(event.currentTarget.value, true));
+  $("background-music-toggle").addEventListener("click", () => setBackgroundMusicEnabled(!preferences.bgmEnabled));
+  $("background-music-volume").addEventListener("input", (event) => setBackgroundMusicVolume(event.currentTarget.value, false));
+  $("background-music-volume").addEventListener("change", (event) => setBackgroundMusicVolume(event.currentTarget.value, true));
   $("play-again").addEventListener("click", newGame);
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape" || ranking?.isOpen) return;

@@ -1,0 +1,48 @@
+name: Import web BGM
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/import-web-bgm.yml
+
+permissions:
+  contents: write
+
+jobs:
+  import-bgm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Download Suno BGM assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p docs/assets/audio
+          curl --fail --location --retry 4 --retry-delay 2 \
+            "https://cdn1.suno.ai/e77efb54-7aa0-41d6-adf3-e11bb56f0877.mp3" \
+            --output docs/assets/audio/default.mp3
+          curl --fail --location --retry 4 --retry-delay 2 \
+            "https://cdn1.suno.ai/9bd397e9-5ddf-49de-b6da-ca7832c9e7fe.mp3" \
+            --output docs/assets/audio/fiver.mp3
+          test -s docs/assets/audio/default.mp3
+          test -s docs/assets/audio/fiver.mp3
+          file docs/assets/audio/default.mp3
+          file docs/assets/audio/fiver.mp3
+
+      - name: Commit BGM assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/assets/audio/default.mp3 docs/assets/audio/fiver.mp3
+          if git diff --cached --quiet; then
+            echo "BGM assets are already current."
+            exit 0
+          fi
+          git commit -m "Add web BGM assets"
+          git push origin HEAD:main

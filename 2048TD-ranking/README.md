@@ -1,8 +1,8 @@
 # 2048TD Ranking API
 
-2048TD Android アプリ向けのオンラインランキング API です。Cloudflare Workers + D1 と TypeScript だけで構成し、Cloudflare の無料枠を前提にしています。
+2048TD Android アプリおよび Web 版向けのオンラインランキング API です。Cloudflare Workers + D1 と TypeScript だけで構成し、Cloudflare の無料枠を前提にしています。
 
-MVP では Android が申告した最終 SCORE を保存します。サーバー側でゲーム操作や SCORE を完全には再計算しないため、改変 APK などによる偽 SCORE を完全には検証できません。
+MVP ではクライアントが申告した最終 SCORE を保存します。サーバー側でゲーム操作や SCORE を完全には再計算しないため、改変クライアントなどによる偽 SCORE を完全には検証できません。
 
 ## 現在の本番環境
 
@@ -33,7 +33,9 @@ npm install
 | `FINISH_RATE_LIMITER` | Rate Limiting | `run/finish` を playerId ごとに10回/60秒 |
 | `LEADERBOARD_RATE_LIMITER` | Rate Limiting | leaderboard を120回/60秒 |
 
-秘密値を含む環境変数はありません。binding は `wrangler.jsonc` で管理します。Android アプリを理由とした `Access-Control-Allow-Origin: *` は設定していません。
+秘密値を含む環境変数はありません。binding は `wrangler.jsonc` で管理します。
+
+Web 版から同じ API を利用できるように、レスポンスには `Access-Control-Allow-Origin: *` を付与し、`GET`, `POST`, `OPTIONS` と `Content-Type` の CORS preflight を受け付けます。認証 Cookie や Authorization header は利用していません。
 
 ## D1 の作成と binding 設定
 
@@ -78,7 +80,7 @@ npm test
 npm run typecheck
 ```
 
-テスト対象には正常 start/finish、二重 finish、存在しない run、player/ruleset 不一致、全入力境界、自己ベスト更新条件、ruleset 分離、4段階の順位条件、limit、SQL injection、rate limit、内部エラー秘匿を含みます。
+テスト対象には正常 start/finish、二重 finish、存在しない run、player/ruleset 不一致、全入力境界、自己ベスト更新条件、ruleset 分離、4段階の順位条件、limit、SQL injection、rate limit、CORS preflight、内部エラー秘匿を含みます。
 
 ## ローカル起動
 
@@ -140,7 +142,7 @@ curl -X POST "$BASE_URL/v1/runs/start" \
 ### run 終了
 
 ```bash
-RUN_ID=be04ad51-bbca-45cb-8ba3-6b101671ac75
+RUN_ID=be04ad51-bbca-45cb-8ba3-5f09b32242ba
 
 curl -X POST "$BASE_URL/v1/runs/finish" \
   -H 'Content-Type: application/json' \

@@ -5,7 +5,8 @@ const EN = {
   settings: "Settings", closeSettings: "Close settings", settingsKicker: "GAME SETTINGS",
   landscapeLayout: "Landscape layout", landscapeDescription: "Choose which side keeps the 2048 board in landscape.",
   leftHand: "Left hand", leftHandDescription: "2048 on the left", rightHand: "Right hand", rightHandDescription: "2048 on the right",
-  portraitUnchanged: "Portrait layout is unchanged.", done: "Done", restartGame: "Restart game",
+  portraitUnchanged: "Portrait layout is unchanged.", soundEffects: "Sound effects", soundEffectsDescription: "Enable or disable game sound effects.",
+  soundEffectsOn: "ON", soundEffectsOff: "OFF", soundEffectsVolume: "Volume", done: "Done", restartGame: "Restart game",
 };
 const JA = {
   restart: "リスタート", hp: "HP", wave: "WAVE", score: "SCORE", totalHp: "TOTAL HP",
@@ -14,6 +15,7 @@ const JA = {
   settings: "設定", closeSettings: "設定を閉じる", settingsKicker: "GAME SETTINGS",
   landscapeLayout: "横画面レイアウト", landscapeDescription: "横画面で2048を操作する側を選べます。",
   leftHand: "左手モード", leftHandDescription: "2048を左側に配置", rightHand: "右手モード", rightHandDescription: "2048を右側に配置",
-  portraitUnchanged: "縦画面のレイアウトには影響しません。", done: "完了", restartGame: "ゲームをリスタート",
+  portraitUnchanged: "縦画面のレイアウトには影響しません。", soundEffects: "効果音", soundEffectsDescription: "ゲームの効果音をオン・オフします。",
+  soundEffectsOn: "オン", soundEffectsOff: "オフ", soundEffectsVolume: "音量", done: "完了", restartGame: "ゲームをリスタート",
 };
 export function strings(locale) { return String(locale).toLowerCase().startsWith("ja") ? JA : EN; }

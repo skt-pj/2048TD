@@ -3,6 +3,8 @@ export const LandscapeHand = Object.freeze({
   RIGHT: "right",
 });
 
+const AUDIO_DEFAULTS_VERSION = 2;
+
 function normalizeVolume(value, fallback) {
   const number = Number(value);
   if (!Number.isFinite(number)) return fallback;
@@ -10,14 +12,19 @@ function normalizeVolume(value, fallback) {
 }
 
 export function normalizePreferences(raw) {
+  const legacySfxVolume = Number(raw?.sfxVolume);
+  const migrateLegacySfxDefault = raw?.audioDefaultsVersion !== AUDIO_DEFAULTS_VERSION
+    && legacySfxVolume === 1;
+
   return {
     landscapeHand: raw?.landscapeHand === LandscapeHand.RIGHT
       ? LandscapeHand.RIGHT
       : LandscapeHand.LEFT,
     sfxEnabled: raw?.sfxEnabled !== false,
-    sfxVolume: normalizeVolume(raw?.sfxVolume, 0.30),
+    sfxVolume: migrateLegacySfxDefault ? 0.30 : normalizeVolume(raw?.sfxVolume, 0.30),
     bgmEnabled: raw?.bgmEnabled !== false,
     bgmVolume: normalizeVolume(raw?.bgmVolume, 1),
+    audioDefaultsVersion: AUDIO_DEFAULTS_VERSION,
   };
 }
 

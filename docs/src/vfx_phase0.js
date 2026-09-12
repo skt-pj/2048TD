@@ -93,48 +93,6 @@ function buildImpactContexts(engine, projectileCandidates, deltaSeconds) {
   return contexts;
 }
 
-function leakingEnemies(beforeEnemies, deltaSeconds) {
-  return beforeEnemies.filter((enemy) => {
-    const nextProgress = Number(enemy.progress) + Math.max(0, Number(enemy.speed) || 0) * deltaSeconds;
-    return nextProgress >= 1;
-  });
-}
-
-function leakSourceX(enemies) {
-  if (!enemies.length) return 0.5;
-  let weight = 0;
-  let weightedX = 0;
-  for (const enemy of enemies) {
-    const enemyWeight = Math.max(1, Number(enemy.hp) || 1);
-    weight += enemyWeight;
-    weightedX += enemyX(enemy) * enemyWeight;
-  }
-  return weight > 0 ? weightedX / weight : 0.5;
-}
-
-function pushBaseDamageEvent(engine, damage, leaked) {
-  if (damage <= 0) return;
-  const strengthTier = vfxStrengthTier("BASE_DAMAGE", damage, engine.state.maxHp);
-  engine.state.vfxEvents.push({
-    contractVersion: VFX_EVENT_CONTRACT_VERSION,
-    id: engine.vfxEventId++,
-    type: "BASE_DAMAGE",
-    x: leakSourceX(leaked),
-    y: 0.985,
-    damage: Math.max(0, Math.trunc(damage)),
-    createdAtSeconds: engine.state.elapsedSeconds,
-    targetId: null,
-    targetType: "BASE",
-    targetMaxHp: Math.max(0, Number(engine.state.maxHp) || 0),
-    sourceColumn: null,
-    weaponType: null,
-    projectileId: null,
-    contributorCount: leaked.length,
-    strengthTier,
-    particleBudget: desiredParticleBudget(strengthTier, engine.state.vfxEvents.length),
-  });
-}
-
 const originalPushVfxEvent = GameEngine.prototype.pushVfxEvent;
 GameEngine.prototype.pushVfxEvent = function phase0PushVfxEvent(enemy, type, damage) {
   const beforeLength = this.state.vfxEvents.length;
@@ -176,8 +134,6 @@ GameEngine.prototype.tick = function phase0Tick(deltaSeconds) {
   if (this.state.gameOverReason) return originalTick.call(this, deltaSeconds);
 
   const delta = Math.max(0, Math.min(0.05, Number(deltaSeconds) || 0));
-  const beforeHp = this.state.currentHp;
-  const beforeEnemies = this.state.enemies.map((enemy) => ({ ...enemy }));
   const projectileArray = this.state.projectiles;
   const originalPush = projectileArray.push;
   const candidates = projectileArray.map((projectile) => ({ ...projectile }));
@@ -192,8 +148,6 @@ GameEngine.prototype.tick = function phase0Tick(deltaSeconds) {
 
   try {
     const result = originalTick.call(this, deltaSeconds);
-    const baseDamage = Math.max(0, beforeHp - this.state.currentHp);
-    if (baseDamage > 0) pushBaseDamageEvent(this, baseDamage, leakingEnemies(beforeEnemies, delta));
     this.state.vfxEvents = enforceVfxBudget(
       this.state.vfxEvents,
       this.state.elapsedSeconds,

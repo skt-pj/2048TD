@@ -8,6 +8,7 @@ export class PlayablesBridge {
     this.loaded = false;
     this.pendingSave = null;
     this.savePromise = null;
+    this.savedBestScore = 0;
     this.scoreTarget = 0;
     this.lastSentScore = 0;
     this.scorePromise = null;
@@ -43,7 +44,8 @@ export class PlayablesBridge {
     try {
       const parsed = JSON.parse(raw);
       if (this.inYouTube) {
-        this.scoreTarget = Math.max(this.scoreTarget, Math.max(0, Math.trunc(Number(parsed?.bestScore) || 0)));
+        this.savedBestScore = Math.max(0, Math.trunc(Number(parsed?.bestScore) || 0));
+        this.scoreTarget = Math.max(this.scoreTarget, this.savedBestScore);
       }
       return parsed;
     } catch {
@@ -60,7 +62,8 @@ export class PlayablesBridge {
         this.pendingSave = null;
         try {
           await globalThis.ytgame.game.saveData(current.raw);
-          this.scoreTarget = Math.max(this.scoreTarget, current.bestScore);
+          this.savedBestScore = Math.max(this.savedBestScore, current.bestScore);
+          this.scoreTarget = Math.max(this.scoreTarget, this.savedBestScore);
         } catch (error) {
           if (this.pendingSave === null) this.pendingSave = current;
           console.warn("Unable to save Playables data", error);
@@ -119,7 +122,9 @@ export class PlayablesBridge {
 
   async sendScore(value) {
     if (!this.inYouTube) return true;
-    this.scoreTarget = Math.max(this.scoreTarget, Math.max(0, Math.trunc(Number(value) || 0)));
+    const requested = Math.max(0, Math.trunc(Number(value) || 0));
+    if (requested > this.savedBestScore) return false;
+    this.scoreTarget = Math.max(this.scoreTarget, this.savedBestScore);
     return this.flushScore();
   }
 

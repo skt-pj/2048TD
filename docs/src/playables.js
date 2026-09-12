@@ -6,6 +6,7 @@ export class PlayablesBridge {
   constructor() {
     this.inYouTube = typeof globalThis.ytgame !== "undefined" && Boolean(globalThis.ytgame.IN_PLAYABLES_ENV);
     this.loaded = false;
+    this.paused = false;
     this.pendingSave = null;
     this.savePromise = null;
     this.savedBestScore = 0;
@@ -71,7 +72,7 @@ export class PlayablesBridge {
           break;
         }
       }
-      if (success) await this.flushScore();
+      if (success && !this.paused) await this.flushScore();
       return success;
     })().finally(() => {
       this.savePromise = null;
@@ -98,12 +99,12 @@ export class PlayablesBridge {
   }
 
   async flushScore() {
-    if (!this.inYouTube) return true;
+    if (!this.inYouTube || this.paused) return true;
     if (this.scorePromise) return this.scorePromise;
     if (this.scoreTarget <= this.lastSentScore) return true;
 
     this.scorePromise = (async () => {
-      while (this.scoreTarget > this.lastSentScore) {
+      while (!this.paused && this.scoreTarget > this.lastSentScore) {
         const target = this.scoreTarget;
         try {
           await globalThis.ytgame.engagement.sendScore({ value: target });
@@ -133,16 +134,19 @@ export class PlayablesBridge {
 
     try { setPlatformAudioEnabled(globalThis.ytgame.system.isAudioEnabled()); }
     catch { setPlatformAudioEnabled(true); }
+    this.paused = false;
     setPlatformPaused(false);
 
     globalThis.ytgame.system.onAudioEnabledChange((enabled) => {
       setPlatformAudioEnabled(enabled);
     });
     globalThis.ytgame.system.onPause(() => {
+      this.paused = true;
       setPlatformPaused(true);
       onPause();
     });
     globalThis.ytgame.system.onResume(() => {
+      this.paused = false;
       setPlatformPaused(false);
       onResume();
       void this.flushSaves();

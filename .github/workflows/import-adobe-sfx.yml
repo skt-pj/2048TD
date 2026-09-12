@@ -1,0 +1,111 @@
+name: Import Adobe SFX
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/import-adobe-sfx.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  import-sfx:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Download and select Adobe Audition SFX
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://download.adobe.com/pub/adobe/audition/offers/adobeauditiondlcsfx'
+          TMP="$RUNNER_TEMP/adobe-sfx"
+          OUT='docs/assets/sfx'
+          mkdir -p "$TMP" "$OUT"
+
+          for pack in cartoon crashes multimedia science_fiction weapons; do
+            echo "Downloading $pack.zip"
+            curl -fL --retry 3 --retry-delay 2 "$BASE/$pack.zip" -o "$TMP/$pack.zip"
+            mkdir -p "$TMP/$pack"
+            unzip -q "$TMP/$pack.zip" -d "$TMP/$pack"
+          done
+
+          : > "$OUT/SOURCES.tsv"
+          printf 'output\tadobe_pack\toriginal_file\n' >> "$OUT/SOURCES.tsv"
+
+          pick() {
+            local output="$1"
+            local packs="$2"
+            local pattern="$3"
+            local source=''
+            local pack=''
+            IFS=',' read -ra candidates <<< "$packs"
+            for candidate in "${candidates[@]}"; do
+              source="$(find "$TMP/$candidate" -type f \( -iname '*.wav' -o -iname '*.aif' -o -iname '*.aiff' \) | grep -Ei "$pattern" | sort | head -n 1 || true)"
+              if [[ -n "$source" ]]; then
+                pack="$candidate"
+                break
+              fi
+            done
+            if [[ -z "$source" ]]; then
+              pack="${candidates[0]}"
+              source="$(find "$TMP/$pack" -type f \( -iname '*.wav' -o -iname '*.aif' -o -iname '*.aiff' \) | sort | head -n 1)"
+            fi
+            if [[ -z "$source" ]]; then
+              echo "No audio source found for $output" >&2
+              exit 1
+            fi
+            ffmpeg -hide_banner -loglevel error -y -i "$source" -vn -ar 44100 -ac 2 -codec:a libmp3lame -b:a 112k "$OUT/$output.mp3"
+            printf '%s\t%s\t%s\n' "$output.mp3" "$pack" "${source#"$TMP/$pack/"}" >> "$OUT/SOURCES.tsv"
+            echo "$output <= $pack :: ${source#"$TMP/$pack/"}"
+          }
+
+          pick ui_click multimedia '(button|click|select|confirm|interface|menu|beep)'
+          pick board_move cartoon '(whoosh|swoosh|swish|slide|zip|move)'
+          pick tile_merge cartoon,multimedia '(pop|pluck|boing|chime|ding|bell|ping)'
+          pick combo multimedia,cartoon '(success|bonus|score|chime|positive|notify|notification|ding)'
+          pick fever_start science_fiction,multimedia '(power.?up|activate|energy|charge|warp|riser|teleport)'
+          pick fever_end science_fiction,multimedia '(power.?down|shutdown|deactivate|descending|fall|fade)'
+          pick weapon_evolve science_fiction '(transform|power.?up|activate|charge|energy|upgrade)'
+          pick weapon_normal weapons '(pistol|handgun|single.?shot|rifle|gunshot)'
+          pick weapon_rapid weapons '(rapid|burst|automatic|pistol|rifle)'
+          pick weapon_machine_gun weapons '(machine.?gun|automatic|burst|rapid)'
+          pick weapon_piercing weapons '(sniper|rifle|arrow|crossbow)'
+          pick weapon_explosive weapons,science_fiction '(rocket|grenade|cannon|launcher|explosion|blast)'
+          pick weapon_laser science_fiction '(laser|beam|blaster|ray)'
+          pick impact crashes '(impact|hit|slam|thud|crash)'
+          pick enemy_kill cartoon,crashes '(splat|pop|smash|break|crash)'
+          pick boss_kill crashes,science_fiction '(explosion|crash|smash|destruction|impact|blast)'
+          pick boss_warning science_fiction,multimedia '(alarm|warning|alert|siren)'
+          pick wave multimedia '(notification|notify|chime|ding|success|positive)'
+          pick base_damage crashes '(heavy|impact|slam|thud|crash)'
+          pick game_over multimedia,science_fiction '(fail|error|negative|wrong|lose|shutdown|power.?down)'
+
+          cat > "$OUT/README.md" <<'EOF'
+          # Adobe Audition SFX used by 2048TD
+
+          These game sound effects are selected from Adobe Audition's downloadable Sound Effects collection and transcoded to MP3 for the web build.
+
+          Source: https://www.adobe.com/products/audition/offers/adobeauditiondlcsfx.html
+
+          Adobe states that the collection is royalty-free and that use/distribution is governed by the Adobe Audition EULA. The source Content Files must not be distributed on a standalone basis. These files are included only as integrated game assets for 2048TD.
+
+          `SOURCES.tsv` records the Adobe archive and original source filename used for each integrated asset.
+          EOF
+
+      - name: Commit selected SFX assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/assets/sfx
+          if git diff --cached --quiet; then
+            echo 'No SFX changes to commit.'
+            exit 0
+          fi
+          git commit -m 'Import selected Adobe Audition SFX assets'
+          git push origin HEAD:main

@@ -52,6 +52,8 @@ const DEFAULTS = Object.freeze({
 
 class SfxPlayer {
   constructor() {
+    this.enabled = true;
+    this.masterVolume = 1;
     this.lastPlayed = new Map();
     this.templates = new Map();
     for (const [key, file] of Object.entries(FILES)) {
@@ -61,7 +63,16 @@ class SfxPlayer {
     }
   }
 
+  setPreferences(enabled, volume) {
+    this.enabled = enabled !== false;
+    const numericVolume = Number(volume);
+    this.masterVolume = Number.isFinite(numericVolume)
+      ? Math.max(0, Math.min(1, numericVolume))
+      : 1;
+  }
+
   play(key, options = {}) {
+    if (!this.enabled || this.masterVolume <= 0) return;
     const template = this.templates.get(key);
     if (!template) return;
     const defaults = DEFAULTS[key] ?? {};
@@ -72,13 +83,18 @@ class SfxPlayer {
     this.lastPlayed.set(key, now);
 
     const audio = template.cloneNode(true);
-    audio.volume = Math.max(0, Math.min(1, options.volume ?? defaults.volume ?? 0.2));
+    const baseVolume = options.volume ?? defaults.volume ?? 0.2;
+    audio.volume = Math.max(0, Math.min(1, baseVolume * this.masterVolume));
     audio.playbackRate = Math.max(0.75, Math.min(1.35, options.rate ?? 1));
     audio.play().catch(() => {});
   }
 }
 
 const sfx = new SfxPlayer();
+
+export function setSfxPreferences(preferences) {
+  sfx.setPreferences(preferences?.sfxEnabled, preferences?.sfxVolume);
+}
 
 function weaponTypes(board) {
   const result = [];

@@ -3,9 +3,9 @@ export const LandscapeHand = Object.freeze({
   RIGHT: "right",
 });
 
-function normalizeVolume(value) {
+function normalizeVolume(value, fallback) {
   const number = Number(value);
-  if (!Number.isFinite(number)) return 1;
+  if (!Number.isFinite(number)) return fallback;
   return Math.max(0, Math.min(1, number));
 }
 
@@ -15,7 +15,9 @@ export function normalizePreferences(raw) {
       ? LandscapeHand.RIGHT
       : LandscapeHand.LEFT,
     sfxEnabled: raw?.sfxEnabled !== false,
-    sfxVolume: normalizeVolume(raw?.sfxVolume),
+    sfxVolume: normalizeVolume(raw?.sfxVolume, 0.30),
+    bgmEnabled: raw?.bgmEnabled !== false,
+    bgmVolume: normalizeVolume(raw?.bgmVolume, 1),
   };
 }
 

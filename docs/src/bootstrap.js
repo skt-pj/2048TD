@@ -1,3 +1,3 @@
 import "./audio.js";
-import "./bgm.js?v=mp3-compat-1";
+import "./bgm.js?v=bgm-loop-fix-2";
 import "./main.js";

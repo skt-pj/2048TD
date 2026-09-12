@@ -7,6 +7,7 @@
   <title>2048TD</title>
   <link rel="stylesheet" href="./styles.css">
   <link rel="stylesheet" href="./settings-audio.css">
+  <link rel="stylesheet" href="./ranking.css">
 </head>
 <body>
   <div id="loading" class="loading" role="status" aria-live="polite">Loading 2048TD…</div>
@@ -19,6 +20,9 @@
       </div>
       <div class="status-cell"><span id="wave-label">WAVE</span><strong id="wave">1</strong></div>
       <div class="status-cell"><span id="score-label">SCORE</span><strong id="score">0</strong></div>
+      <button id="ranking-button" class="icon-button ranking-button" type="button" aria-label="Open ranking" aria-haspopup="dialog" aria-controls="ranking-overlay">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v3c0 3.2-1.7 5.8-4 5.8S8 10.2 8 7V4Z"/><path d="M8 6H5v1.2c0 2.1 1.2 3.7 3.2 4.1M16 6h3v1.2c0 2.1-1.2 3.7-3.2 4.1M12 12.8V17M9 20h6M10 17h4"/></svg>
+      </button>
       <button id="settings-button" class="icon-button settings-button" type="button" aria-label="Settings" aria-haspopup="dialog" aria-controls="settings-overlay">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm9 3.5-2.05-1.18c.04-.28.05-.55.05-.82s-.01-.54-.05-.82L21 8l-2-3.46-2.08 1.2a7.8 7.8 0 0 0-1.42-.82V2.5h-4v2.42c-.5.22-.97.5-1.42.82L8 4.54 6 8l2.05 1.18A6.3 6.3 0 0 0 8 10c0 .27.01.54.05.82L6 12l2 3.46 2.08-1.2c.45.33.92.6 1.42.82v2.42h4v-2.42c.5-.22.97-.5 1.42-.82l2.08 1.2L21 12Z"/></svg>
       </button>
@@ -122,18 +126,74 @@
       </section>
     </div>
 
+    <div id="ranking-overlay" class="ranking-overlay" hidden>
+      <button id="ranking-backdrop" class="ranking-backdrop" type="button" tabindex="-1" aria-label="Close ranking"></button>
+      <section class="ranking-sheet" role="dialog" aria-modal="true" aria-labelledby="ranking-title">
+        <header class="ranking-header">
+          <button id="ranking-close" class="ranking-close" type="button" aria-label="Close ranking">←</button>
+          <div class="ranking-header-copy">
+            <span id="ranking-kicker" class="ranking-kicker">GLOBAL RANK</span>
+            <h2 id="ranking-title" class="ranking-title">RANKING</h2>
+          </div>
+          <button id="ranking-refresh" class="ranking-refresh" type="button" aria-label="Refresh ranking">↻</button>
+        </header>
+
+        <div class="ranking-tabs" role="tablist" aria-label="Ranking view">
+          <button id="ranking-tab-top" class="ranking-tab active" type="button" role="tab" aria-selected="true" aria-controls="ranking-top-view">TOP 100</button>
+          <button id="ranking-tab-mine" class="ranking-tab" type="button" role="tab" aria-selected="false" aria-controls="ranking-my-view">MY RANK</button>
+        </div>
+
+        <div class="ranking-content">
+          <div id="ranking-status" class="ranking-status" role="status" aria-live="polite" hidden>Loading ranking…</div>
+          <div id="ranking-top-view" class="ranking-top-view" role="tabpanel" aria-labelledby="ranking-tab-top">
+            <div id="ranking-list" class="ranking-list"></div>
+          </div>
+          <div id="ranking-my-view" class="ranking-my-view" role="tabpanel" aria-labelledby="ranking-tab-mine" hidden>
+            <div class="ranking-my-card">
+              <span id="ranking-my-rank-label" class="ranking-my-rank-label">GLOBAL RANK</span>
+              <strong id="ranking-my-rank" class="ranking-my-rank">---</strong>
+              <p id="ranking-my-total" class="ranking-my-total"></p>
+              <div class="ranking-my-stats">
+                <div class="ranking-my-stat"><span id="ranking-my-best-label">Best</span><strong id="ranking-my-best">---</strong></div>
+                <div class="ranking-my-stat"><span id="ranking-my-wave-label">WAVE</span><strong id="ranking-my-wave">-</strong></div>
+                <div class="ranking-my-stat"><span id="ranking-my-tile-label">MAX TILE</span><strong id="ranking-my-tile">-</strong></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <footer class="ranking-you-bar">
+          <span id="ranking-you-label" class="ranking-you-label">YOU</span>
+          <strong id="ranking-you-rank" class="ranking-you-rank">---</strong>
+          <span id="ranking-you-total" class="ranking-you-total"></span>
+          <strong id="ranking-you-score" class="ranking-you-score">---</strong>
+        </footer>
+      </section>
+    </div>
+
     <div id="game-over" class="game-over" hidden>
       <div class="game-over-card">
         <h1 id="game-over-title">GAME OVER</h1>
         <p id="game-over-reason"></p>
-        <p><span id="final-score-label">Score</span>: <strong id="final-score">0</strong></p>
-        <p><span id="best-score-label">Best</span>: <strong id="best-score">0</strong></p>
-        <button id="play-again" type="button">Play Again</button>
+        <div class="game-over-score-block">
+          <span id="final-score-label">Score</span>
+          <strong id="final-score">0</strong>
+        </div>
+        <p class="game-over-best"><span id="best-score-label">Best</span>: <strong id="best-score">0</strong></p>
+        <div id="game-over-rank-card" class="game-over-rank-card">
+          <span id="global-rank-label">GLOBAL RANK</span>
+          <strong id="game-over-rank">---</strong>
+          <small id="game-over-rank-status">Updating…</small>
+        </div>
+        <div class="game-over-actions">
+          <button id="game-over-ranking" type="button">RANKING</button>
+          <button id="play-again" type="button">Play Again</button>
+        </div>
       </div>
     </div>
   </main>
 
   <script src="https://www.youtube.com/game_api/v1"></script>
-  <script type="module" src="./src/bootstrap.js?v=bgm-loop-fix-2"></script>
+  <script type="module" src="./src/bootstrap.js?v=web-ranking-1"></script>
 </body>
 </html>

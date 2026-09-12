@@ -2,6 +2,7 @@ import { GameEngine } from "./game_engine.js";
 import { GRID_SIZE } from "./game_rules.js";
 import { columnLevel, weaponType } from "./column_combat_rules.js";
 import { feverActive } from "./combo_fever.js";
+import { subscribePlatformAudio } from "./platform_state.js";
 
 const BASE = "./assets/sfx";
 const FILES = Object.freeze({
@@ -53,6 +54,7 @@ const DEFAULTS = Object.freeze({
 class SfxPlayer {
   constructor() {
     this.enabled = true;
+    this.platformAudioEnabled = true;
     this.masterVolume = 1;
     this.lastPlayed = new Map();
     this.templates = new Map();
@@ -71,8 +73,12 @@ class SfxPlayer {
       : 1;
   }
 
+  setPlatformAudioEnabled(enabled) {
+    this.platformAudioEnabled = enabled !== false;
+  }
+
   play(key, options = {}) {
-    if (!this.enabled || this.masterVolume <= 0) return;
+    if (!this.enabled || !this.platformAudioEnabled || this.masterVolume <= 0) return;
     const template = this.templates.get(key);
     if (!template) return;
     const defaults = DEFAULTS[key] ?? {};
@@ -91,6 +97,7 @@ class SfxPlayer {
 }
 
 const sfx = new SfxPlayer();
+subscribePlatformAudio((enabled) => sfx.setPlatformAudioEnabled(enabled));
 
 export function setSfxPreferences(preferences) {
   sfx.setPreferences(preferences?.sfxEnabled, preferences?.sfxVolume);

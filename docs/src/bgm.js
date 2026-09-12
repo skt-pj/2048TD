@@ -1,10 +1,10 @@
 const TRACKS = Object.freeze({
   normal: {
-    src: new URL("../assets/audio/default.ogg", import.meta.url).href,
+    src: new URL("../assets/audio/default.mp3", import.meta.url).href,
     volume: 0.50,
   },
   fever: {
-    src: new URL("../assets/audio/fiver.ogg", import.meta.url).href,
+    src: new URL("../assets/audio/fiver.mp3", import.meta.url).href,
     volume: 0.60,
   },
 });

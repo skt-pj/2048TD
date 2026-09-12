@@ -29,7 +29,44 @@ class BgmController {
     this.current = "normal";
     this.unlocked = false;
     this.suspended = false;
+    this.enabled = true;
+    this.masterVolume = 1;
     this.fadeFrame = 0;
+  }
+
+  targetVolume(name) {
+    return this.enabled ? TRACKS[name].volume * this.masterVolume : 0;
+  }
+
+  setPreferences(preferences) {
+    const wasEnabled = this.enabled;
+    this.enabled = preferences?.bgmEnabled !== false;
+    const numericVolume = Number(preferences?.bgmVolume);
+    this.masterVolume = Number.isFinite(numericVolume)
+      ? Math.max(0, Math.min(1, numericVolume))
+      : 1;
+
+    cancelAnimationFrame(this.fadeFrame);
+
+    if (!this.enabled) {
+      for (const audio of Object.values(this.tracks)) {
+        audio.pause();
+        audio.volume = 0;
+      }
+      return;
+    }
+
+    for (const [name, audio] of Object.entries(this.tracks)) {
+      audio.volume = name === this.current && !audio.paused ? this.targetVolume(name) : 0;
+    }
+
+    if (!wasEnabled && this.unlocked && !this.suspended) {
+      this.playCurrent(false);
+      return;
+    }
+
+    const current = this.tracks[this.current];
+    if (!current.paused) current.volume = this.targetVolume(this.current);
   }
 
   preload() {
@@ -44,10 +81,10 @@ class BgmController {
   }
 
   async playCurrent(restart = false) {
-    if (!this.unlocked || this.suspended) return;
+    if (!this.unlocked || this.suspended || !this.enabled) return;
     const audio = this.tracks[this.current];
     if (restart) audio.currentTime = 0;
-    audio.volume = TRACKS[this.current].volume;
+    audio.volume = this.targetVolume(this.current);
     try {
       await audio.play();
     } catch (error) {
@@ -60,7 +97,7 @@ class BgmController {
     if (!(mode in this.tracks) || mode === this.current) return;
     const previous = this.current;
     this.current = mode;
-    if (!this.unlocked || this.suspended) return;
+    if (!this.unlocked || this.suspended || !this.enabled) return;
     this.crossfade(previous, mode);
   }
 
@@ -69,7 +106,7 @@ class BgmController {
     const from = this.tracks[fromName];
     const to = this.tracks[toName];
     const fromStart = from.volume;
-    const toTarget = TRACKS[toName].volume;
+    const toTarget = this.targetVolume(toName);
 
     to.currentTime = 0;
     to.volume = 0;
@@ -83,6 +120,13 @@ class BgmController {
 
     const startedAt = performance.now();
     const step = (now) => {
+      if (!this.enabled || this.suspended) {
+        from.pause();
+        to.pause();
+        from.volume = 0;
+        to.volume = 0;
+        return;
+      }
       const ratio = Math.min(1, (now - startedAt) / CROSSFADE_MS);
       from.volume = fromStart * (1 - ratio);
       to.volume = toTarget * ratio;
@@ -128,6 +172,10 @@ const app = document.getElementById("app");
 const settings = document.getElementById("settings-overlay");
 const gameOver = document.getElementById("game-over");
 let gameOverWasVisible = gameOver ? !gameOver.hidden : false;
+
+export function setBgmPreferences(preferences) {
+  controller.setPreferences(preferences);
+}
 
 function gameShouldPause() {
   return document.hidden || !settings?.hidden || !gameOver?.hidden;

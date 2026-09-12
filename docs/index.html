@@ -18,14 +18,16 @@
       </div>
       <div class="status-cell"><span id="wave-label">WAVE</span><strong id="wave">1</strong></div>
       <div class="status-cell"><span id="score-label">SCORE</span><strong id="score">0</strong></div>
-      <button id="restart" class="restart" type="button" aria-label="Restart">↻</button>
+      <button id="settings-button" class="icon-button settings-button" type="button" aria-label="Settings" aria-haspopup="dialog" aria-controls="settings-overlay">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm9 3.5-2.05-1.18c.04-.28.05-.55.05-.82s-.01-.54-.05-.82L21 8l-2-3.46-2.08 1.2a7.8 7.8 0 0 0-1.42-.82V2.5h-4v2.42c-.5.22-.97.5-1.42.82L8 4.54 6 8l2.05 1.18A6.3 6.3 0 0 0 8 10c0 .27.01.54.05.82L6 12l2 3.46 2.08-1.2c.45.33.92.6 1.42.82v2.42h4v-2.42c.5-.22.97-.5 1.42-.82l2.08 1.2L21 12Z"/></svg>
+      </button>
     </header>
 
     <div id="playfield-shell" class="playfield-shell">
       <section id="battle-panel" class="battle-panel" aria-label="Battlefield">
         <canvas id="battlefield" width="720" height="620"></canvas>
         <div class="flow-label portrait-only">ENEMY ↓</div>
-        <div class="flow-label landscape-only">← ENEMY</div>
+        <div id="landscape-flow-label" class="flow-label landscape-only">← ENEMY</div>
         <div id="boss-warning" class="boss-warning" hidden>BOSS <span id="boss-countdown"></span></div>
         <div id="combo-hud" class="combo-hud" aria-live="polite" hidden>
           <strong id="combo-number">1</strong><span>COMBO</span>
@@ -48,6 +50,58 @@
     </div>
 
     <div id="fever-transition" class="fever-transition" hidden aria-live="assertive">FEVER</div>
+
+
+    <div id="settings-overlay" class="settings-overlay" hidden>
+      <button id="settings-backdrop" class="settings-backdrop" type="button" tabindex="-1" aria-label="Close settings"></button>
+      <section class="settings-sheet" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+        <header class="settings-header">
+          <div>
+            <span id="settings-kicker" class="settings-kicker">GAME SETTINGS</span>
+            <h2 id="settings-title">Settings</h2>
+          </div>
+          <button id="settings-close" class="settings-close" type="button" aria-label="Close settings">×</button>
+        </header>
+
+        <div class="settings-section">
+          <div class="settings-section-title-row">
+            <div>
+              <h3 id="landscape-hand-title">Landscape layout</h3>
+              <p id="landscape-hand-description">Choose which side keeps the 2048 board in landscape.</p>
+            </div>
+            <span class="landscape-badge">LANDSCAPE</span>
+          </div>
+
+          <div id="handedness-options" class="handedness-options" role="radiogroup" aria-labelledby="landscape-hand-title">
+            <button id="hand-left" class="hand-option" type="button" role="radio" aria-checked="true" data-hand="left">
+              <span class="hand-preview" aria-hidden="true">
+                <span class="preview-board"><i></i><i></i><i></i><i></i></span>
+                <span class="preview-divider"></span>
+                <span class="preview-battle"><b>←</b><i></i><i></i><i></i><i></i></span>
+              </span>
+              <span class="hand-option-copy"><strong id="hand-left-title">Left hand</strong><small id="hand-left-description">2048 on the left</small></span>
+              <span class="selection-dot" aria-hidden="true"></span>
+            </button>
+
+            <button id="hand-right" class="hand-option" type="button" role="radio" aria-checked="false" data-hand="right">
+              <span class="hand-preview" aria-hidden="true">
+                <span class="preview-battle"><b>→</b><i></i><i></i><i></i><i></i></span>
+                <span class="preview-divider"></span>
+                <span class="preview-board"><i></i><i></i><i></i><i></i></span>
+              </span>
+              <span class="hand-option-copy"><strong id="hand-right-title">Right hand</strong><small id="hand-right-description">2048 on the right</small></span>
+              <span class="selection-dot" aria-hidden="true"></span>
+            </button>
+          </div>
+          <p id="portrait-unchanged" class="settings-note">Portrait layout is unchanged.</p>
+        </div>
+
+        <div class="settings-actions">
+          <button id="settings-restart" class="settings-action secondary" type="button">Restart game</button>
+          <button id="settings-done" class="settings-action primary" type="button">Done</button>
+        </div>
+      </section>
+    </div>
 
     <div id="game-over" class="game-over" hidden>
       <div class="game-over-card">

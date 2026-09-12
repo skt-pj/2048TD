@@ -41,12 +41,12 @@ function resizeCanvas(canvas) {
   return { ctx, w: rect.width, h: rect.height };
 }
 
-function screenPoint(x, y, landscape, w, h) {
-  const p = logicalPointToScreen(x, y, landscape);
+function screenPoint(x, y, landscape, w, h, landscapeHand = "left") {
+  const p = logicalPointToScreen(x, y, landscape, landscapeHand);
   return { x: p.x * w, y: p.y * h };
 }
 
-export function renderBattle(canvas, state, landscape) {
+export function renderBattle(canvas, state, landscape, landscapeHand = "left") {
   const { ctx, w, h } = resizeCanvas(canvas);
   const fever = feverActive(state.comboFever);
   const phase = state.elapsedSeconds;
@@ -54,29 +54,29 @@ export function renderBattle(canvas, state, landscape) {
   ctx.fillStyle = fever ? "#100619" : COLORS.panel;
   ctx.fillRect(0, 0, w, h);
 
-  drawLanes(ctx, w, h, landscape, fever, phase);
+  drawLanes(ctx, w, h, landscape, fever, phase, landscapeHand);
   drawBossAxis(ctx, w, h, landscape, Boolean(state.bossWarning), fever, phase);
-  drawDefenseLine(ctx, w, h, landscape, fever, phase);
+  drawDefenseLine(ctx, w, h, landscape, fever, phase, landscapeHand);
 
   for (let col = 0; col < GRID_SIZE; col += 1) {
     const logical = { x: (col + 0.5) / GRID_SIZE, y: 0.955 };
-    const point = screenPoint(logical.x, logical.y, landscape, w, h);
+    const point = screenPoint(logical.x, logical.y, landscape, w, h, landscapeHand);
     const type = weaponType(columnLevel(state.board, col));
     const ready = 1 - Math.min(1, state.cooldowns[col] / Math.max(0.01, ({ NORMAL:.90, RAPID:.62, MACHINE_GUN:.24, PIERCING:.72, EXPLOSIVE:.95, LASER:.78 })[type]));
-    drawTurret(ctx, point.x, point.y, type, landscape, ready, fever, phase);
+    drawTurret(ctx, point.x, point.y, type, landscape, ready, fever, phase, landscapeHand);
   }
 
-  for (const enemy of state.enemies) drawEnemy(ctx, enemy, landscape, w, h, fever, phase);
+  for (const enemy of state.enemies) drawEnemy(ctx, enemy, landscape, w, h, fever, phase, landscapeHand);
   for (const projectile of state.projectiles) {
-    const point = screenPoint(projectile.x, projectile.y, landscape, w, h);
-    drawProjectile(ctx, point.x, point.y, projectile.weaponType, landscape, fever);
+    const point = screenPoint(projectile.x, projectile.y, landscape, w, h, landscapeHand);
+    drawProjectile(ctx, point.x, point.y, projectile.weaponType, landscape, fever, landscapeHand);
   }
-  for (const event of state.vfxEvents ?? []) drawImpact(ctx, event, state.elapsedSeconds, landscape, w, h, fever);
+  for (const event of state.vfxEvents ?? []) drawImpact(ctx, event, state.elapsedSeconds, landscape, w, h, fever, landscapeHand);
 
   if (fever) drawFeverAtmosphere(ctx, w, h, phase);
 }
 
-function drawLanes(ctx, w, h, landscape, fever, phase) {
+function drawLanes(ctx, w, h, landscape, fever, phase, landscapeHand) {
   for (let lane = 0; lane < GRID_SIZE; lane += 1) {
     const even = lane % 2 === 0;
     const base = fever ? (even ? "#100718" : "#07101a") : (even ? COLORS.laneA : COLORS.laneB);
@@ -99,7 +99,7 @@ function drawLanes(ctx, w, h, landscape, fever, phase) {
   ctx.font = "700 10px system-ui";
   ctx.textAlign = "center";
   for (let lane = 0; lane < 4; lane += 1) {
-    if (landscape) ctx.fillText(String(lane + 1), w - 12, (lane + .5) * h / 4 + 3);
+    if (landscape) ctx.fillText(String(lane + 1), landscapeHand === "right" ? 12 : w - 12, (lane + .5) * h / 4 + 3);
     else ctx.fillText(String(lane + 1), (lane + .5) * w / 4, 14);
   }
   ctx.restore();
@@ -117,9 +117,9 @@ function drawBossAxis(ctx, w, h, landscape, warning, fever, phase) {
   ctx.setLineDash([]);
 }
 
-function drawDefenseLine(ctx, w, h, landscape, fever, phase) {
-  const p0 = screenPoint(0, .985, landscape, w, h);
-  const p1 = screenPoint(1, .985, landscape, w, h);
+function drawDefenseLine(ctx, w, h, landscape, fever, phase, landscapeHand) {
+  const p0 = screenPoint(0, .985, landscape, w, h, landscapeHand);
+  const p1 = screenPoint(1, .985, landscape, w, h, landscapeHand);
   const pulse = .55 + .45 * Math.sin(phase * 4);
   ctx.strokeStyle = fever ? `rgba(255,53,211,${.65 + .25*pulse})` : "rgba(0,245,255,.75)";
   ctx.lineWidth = fever ? 4 : 2;
@@ -127,13 +127,18 @@ function drawDefenseLine(ctx, w, h, landscape, fever, phase) {
   ctx.fillStyle = fever ? COLORS.pink : COLORS.cyan;
   ctx.font = "800 9px system-ui";
   if (landscape) {
-    ctx.save(); ctx.translate(p0.x + 8, h - 8); ctx.rotate(-Math.PI / 2); ctx.fillText("DEFENSE", 0, 0); ctx.restore();
+    ctx.save();
+    const rightHand = landscapeHand === "right";
+    ctx.translate(p0.x + (rightHand ? -8 : 8), h - 8);
+    ctx.rotate(rightHand ? Math.PI / 2 : -Math.PI / 2);
+    ctx.fillText("DEFENSE", 0, 0);
+    ctx.restore();
   } else ctx.fillText("DEFENSE LINE", 8, p0.y - 7);
 }
 
-function drawEnemy(ctx, enemy, landscape, w, h, fever, phase) {
+function drawEnemy(ctx, enemy, landscape, w, h, fever, phase, landscapeHand) {
   const logicalX = enemy.enemyType === "BOSS" ? .5 : (enemy.lane + .5) / GRID_SIZE;
-  const point = screenPoint(logicalX, enemy.progress, landscape, w, h);
+  const point = screenPoint(logicalX, enemy.progress, landscape, w, h, landscapeHand);
   const base = Math.min(w, h);
   const r = enemy.enemyType === "BOSS" ? Math.max(18, base * .065) : Math.max(10, base * .033);
   const color = enemy.enemyType === "BOSS" ? COLORS.pink : COLORS.red;
@@ -165,11 +170,11 @@ function drawEnemy(ctx, enemy, landscape, w, h, fever, phase) {
   }
 }
 
-function drawTurret(ctx, x, y, type, landscape, readyRatio, fever, phase) {
+function drawTurret(ctx, x, y, type, landscape, readyRatio, fever, phase, landscapeHand) {
   const color = WEAPON_COLORS[type] ?? WEAPON_COLORS.NORMAL;
   ctx.save();
   ctx.translate(x, y);
-  if (landscape) ctx.rotate(-Math.PI / 2);
+  if (landscape) ctx.rotate(landscapeHand === "right" ? -Math.PI / 2 : Math.PI / 2);
   ctx.fillStyle = color;
   ctx.fillRect(-11, -8, 22, 9);
   ctx.fillRect(-2.5, -18, 5, 12);
@@ -182,10 +187,10 @@ function drawTurret(ctx, x, y, type, landscape, readyRatio, fever, phase) {
   ctx.restore();
 }
 
-function drawProjectile(ctx, x, y, type, landscape, fever) {
+function drawProjectile(ctx, x, y, type, landscape, fever, landscapeHand) {
   ctx.save();
   ctx.translate(x, y);
-  if (landscape) ctx.rotate(-Math.PI / 2);
+  if (landscape) ctx.rotate(landscapeHand === "right" ? -Math.PI / 2 : Math.PI / 2);
   if (type === WeaponType.LASER) {
     ctx.strokeStyle = "#ff75a2"; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(0, 12); ctx.lineTo(0, -22); ctx.stroke();
   } else if (type === WeaponType.PIERCING) {
@@ -206,11 +211,11 @@ function drawProjectile(ctx, x, y, type, landscape, fever) {
   ctx.restore();
 }
 
-function drawImpact(ctx, event, elapsed, landscape, w, h, fever) {
+function drawImpact(ctx, event, elapsed, landscape, w, h, fever, landscapeHand) {
   const age = Math.max(0, elapsed - event.createdAtSeconds);
   const life = Math.max(0, 1 - age / .9);
   if (life <= 0) return;
-  const p = screenPoint(event.x, event.y, landscape, w, h);
+  const p = screenPoint(event.x, event.y, landscape, w, h, landscapeHand);
   const kill = event.type === "KILL" || event.type === "BOSS_KILL";
   const maxR = event.type === "BOSS_KILL" ? 58 : kill ? 34 : 20;
   ctx.strokeStyle = event.type === "BOSS_KILL" ? `rgba(255,53,211,${life})` : kill ? `rgba(0,245,255,${life})` : `rgba(255,176,32,${life*.75})`;

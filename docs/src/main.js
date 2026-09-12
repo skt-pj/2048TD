@@ -4,11 +4,14 @@ import { strings } from "./i18n.js";
 import { renderBattle, renderBoard, renderComboFever, renderWeaponStrip } from "./renderer.js";
 import { isLandscapeViewport, screenDirectionToLogical } from "./orientation.js";
 import { feverActive } from "./combo_fever.js";
+import { LandscapeHand, normalizePreferences } from "./preferences.js";
 
 const bridge = new PlayablesBridge();
 const engine = new GameEngine();
 let bestScore = 0;
-let paused = false;
+let systemPaused = false;
+let settingsOpen = false;
+let preferences = normalizePreferences(null);
 let raf = 0;
 let lastTime = 0;
 let text = strings("en-US");
@@ -27,13 +30,16 @@ const boardEl = $("board");
 const gameOverEl = $("game-over");
 const comboHud = $("combo-hud");
 const feverTransition = $("fever-transition");
+const settingsOverlay = $("settings-overlay");
 
 function landscapeNow() {
   return isLandscapeViewport(globalThis.innerWidth, globalThis.innerHeight);
 }
 
 function applyStrings() {
-  $("restart").setAttribute("aria-label", text.restart);
+  $("settings-button").setAttribute("aria-label", text.settings);
+  $("settings-close").setAttribute("aria-label", text.closeSettings);
+  $("settings-backdrop").setAttribute("aria-label", text.closeSettings);
   $("hp-label").textContent = text.hp;
   $("wave-label").textContent = text.wave;
   $("score-label").textContent = text.score;
@@ -42,6 +48,53 @@ function applyStrings() {
   $("final-score-label").textContent = text.finalScore;
   $("best-score-label").textContent = text.best;
   $("play-again").textContent = text.playAgain;
+  $("settings-kicker").textContent = text.settingsKicker;
+  $("settings-title").textContent = text.settings;
+  $("landscape-hand-title").textContent = text.landscapeLayout;
+  $("landscape-hand-description").textContent = text.landscapeDescription;
+  $("hand-left-title").textContent = text.leftHand;
+  $("hand-left-description").textContent = text.leftHandDescription;
+  $("hand-right-title").textContent = text.rightHand;
+  $("hand-right-description").textContent = text.rightHandDescription;
+  $("portrait-unchanged").textContent = text.portraitUnchanged;
+  $("settings-restart").textContent = text.restartGame;
+  $("settings-done").textContent = text.done;
+}
+
+function gamePaused() {
+  return systemPaused || settingsOpen;
+}
+
+function updatePreferenceUi() {
+  const rightHand = preferences.landscapeHand === LandscapeHand.RIGHT;
+  app.classList.toggle("handed-right", rightHand);
+  $("hand-left").setAttribute("aria-checked", String(!rightHand));
+  $("hand-right").setAttribute("aria-checked", String(rightHand));
+  $("landscape-flow-label").textContent = rightHand ? "ENEMY →" : "← ENEMY";
+}
+
+function setLandscapeHand(hand) {
+  preferences = normalizePreferences({ landscapeHand: hand });
+  updatePreferenceUi();
+  render();
+  saveProgress();
+}
+
+function openSettings() {
+  if (settingsOpen) return;
+  settingsOpen = true;
+  cancelAnimationFrame(raf);
+  settingsOverlay.hidden = false;
+  updatePreferenceUi();
+  $(preferences.landscapeHand === LandscapeHand.RIGHT ? "hand-right" : "hand-left").focus({ preventScroll: true });
+}
+
+function closeSettings() {
+  if (!settingsOpen) return;
+  settingsOpen = false;
+  settingsOverlay.hidden = true;
+  startLoop();
+  boardEl.focus({ preventScroll: true });
 }
 
 function showComboIfNeeded(state) {
@@ -98,7 +151,7 @@ function render() {
 
   renderBoard(boardEl, state.board, landscape);
   renderWeaponStrip($("weapon-strip"), state.board);
-  renderBattle(canvas, state, landscape);
+  renderBattle(canvas, state, landscape, preferences.landscapeHand);
   renderComboFever(app, state);
   showComboIfNeeded(state);
   handleFeverTransitions(state);
@@ -123,7 +176,7 @@ function render() {
 
 async function saveProgress() {
   bestScore = Math.max(bestScore, engine.state.score);
-  await bridge.save({ version: 2, bestScore, run: engine.serialize() });
+  await bridge.save({ version: 3, bestScore, settings: preferences, run: engine.serialize() });
 }
 
 async function reportGameOver() {
@@ -135,7 +188,7 @@ async function reportGameOver() {
 }
 
 function loop(timestamp) {
-  if (paused) return;
+  if (gamePaused()) return;
   const delta = lastTime ? (timestamp - lastTime) / 1000 : 0;
   lastTime = timestamp;
   const beforeWave = engine.state.wave;
@@ -149,7 +202,7 @@ function loop(timestamp) {
 function startLoop() {
   cancelAnimationFrame(raf);
   lastTime = 0;
-  if (!paused) raf = requestAnimationFrame(loop);
+  if (!gamePaused()) raf = requestAnimationFrame(loop);
 }
 
 function syncUiEventBaselines() {
@@ -168,7 +221,7 @@ function newGame() {
 }
 
 function moveScreenDirection(screenDirection) {
-  if (paused || engine.state.gameOverReason) return;
+  if (gamePaused() || engine.state.gameOverReason) return;
   const logicalDirection = screenDirectionToLogical(screenDirection, landscapeNow());
   const result = engine.move(logicalDirection);
   if (!result.changed) return;
@@ -210,8 +263,23 @@ function installInput() {
   });
   boardEl.addEventListener("pointercancel", () => { start = null; });
 
-  $("restart").addEventListener("click", newGame);
+  $("settings-button").addEventListener("click", openSettings);
+  $("settings-close").addEventListener("click", closeSettings);
+  $("settings-backdrop").addEventListener("click", closeSettings);
+  $("settings-done").addEventListener("click", closeSettings);
+  $("settings-restart").addEventListener("click", () => {
+    newGame();
+    closeSettings();
+  });
+  $("hand-left").addEventListener("click", () => setLandscapeHand(LandscapeHand.LEFT));
+  $("hand-right").addEventListener("click", () => setLandscapeHand(LandscapeHand.RIGHT));
   $("play-again").addEventListener("click", newGame);
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && settingsOpen) {
+      event.preventDefault();
+      closeSettings();
+    }
+  });
   globalThis.addEventListener("resize", render, { passive: true });
   globalThis.addEventListener("orientationchange", () => setTimeout(render, 60), { passive: true });
 }
@@ -223,8 +291,10 @@ async function initialize() {
   applyStrings();
   if (saved && typeof saved === "object") {
     bestScore = Math.max(0, Number(saved.bestScore) || 0);
+    preferences = normalizePreferences(saved.settings);
     if (saved.run) engine.restore(saved.run);
   }
+  updatePreferenceUi();
   if (engine.state.gameOverReason) {
     engine.reset();
     gameOverReported = false;
@@ -233,12 +303,12 @@ async function initialize() {
   installInput();
   bridge.installSystemHandlers({
     onPause: () => {
-      paused = true;
+      systemPaused = true;
       cancelAnimationFrame(raf);
       saveProgress();
     },
     onResume: () => {
-      paused = false;
+      systemPaused = false;
       startLoop();
     },
   });

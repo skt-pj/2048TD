@@ -2,11 +2,13 @@ export function isLandscapeViewport(width = globalThis.innerWidth, height = glob
   return Number(width) > Number(height);
 }
 
-// The landscape presentation is a 90-degree clockwise rotation of the logical
-// portrait playfield. That keeps the same four logical 2048 columns attached
-// to the same four combat lanes while enemies move from right to left.
-export function logicalPointToScreen(x, y, landscape) {
-  return landscape ? { x: 1 - y, y: x } : { x, y };
+// Landscape keeps the same four logical 2048 columns attached to the same four
+// combat lanes. Left-hand mode places the 2048 board on the left, so combat is
+// rotated clockwise and enemies move right -> left. Right-hand mode mirrors
+// only the combat presentation so enemies move left -> right toward the board.
+export function logicalPointToScreen(x, y, landscape, landscapeHand = "left") {
+  if (!landscape) return { x, y };
+  return landscapeHand === "right" ? { x: y, y: x } : { x: 1 - y, y: x };
 }
 
 export function displayIndexToLogicalIndex(displayIndex, landscape, gridSize = 4) {

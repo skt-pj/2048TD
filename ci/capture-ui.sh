@@ -13,12 +13,9 @@ capture() {
   adb exec-out screencap -p > "$OUT_DIR/$name.png"
 }
 
-tap_text() {
+find_text_coordinates() {
   local target="$1"
-  adb shell uiautomator dump --compressed /sdcard/window.xml >/dev/null
-  adb pull /sdcard/window.xml "$OUT_DIR/window.xml" >/dev/null
-  local coordinates
-  coordinates="$(python3 - "$OUT_DIR/window.xml" "$target" <<'PY'
+  python3 - "$OUT_DIR/window.xml" "$target" <<'PY'
 import re
 import sys
 import xml.etree.ElementTree as ET
@@ -36,10 +33,33 @@ for node in root.iter("node"):
             raise SystemExit(0)
 raise SystemExit(2)
 PY
-)"
-  read -r x y <<< "$coordinates"
-  adb shell input tap "$x" "$y"
-  sleep 1
+}
+
+tap_text() {
+  local target="$1"
+  local coordinates=""
+  local attempt
+  for attempt in $(seq 1 12); do
+    if adb shell uiautomator dump --compressed /sdcard/window.xml >/dev/null 2>&1 && \
+       adb pull /sdcard/window.xml "$OUT_DIR/window.xml" >/dev/null 2>&1; then
+      coordinates="$(find_text_coordinates "$target" 2>/dev/null || true)"
+      if [[ -n "$coordinates" ]]; then
+        local x y
+        read -r x y <<< "$coordinates"
+        adb shell input tap "$x" "$y"
+        sleep 1
+        return 0
+      fi
+    fi
+    sleep 1
+  done
+
+  echo "Unable to find UI target after retries: $target" >&2
+  if [[ -f "$OUT_DIR/window.xml" ]]; then
+    cat "$OUT_DIR/window.xml" >&2 || true
+  fi
+  capture "failure-${target//\//_}" || true
+  return 2
 }
 
 adb install -r "$APK" >/dev/null

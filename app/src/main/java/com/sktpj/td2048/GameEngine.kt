@@ -214,21 +214,7 @@ class GameEngine(
         val hits = mutableListOf<Projectile>()
         val moving = mutableListOf<Projectile>()
         for (projectile in projectiles) {
-            val sourceColumn = projectile.sourceCellIndex.coerceIn(0, GameRules.GRID_SIZE - 1)
-            val existingTarget = enemies.firstOrNull {
-                it.id == projectile.targetEnemyId &&
-                    ColumnCombatRules.canAttack(
-                        column = sourceColumn,
-                        enemy = it,
-                        ignoreLaneRestriction = projectile.ignoresLaneRestriction,
-                    )
-            }
-            val target = existingTarget ?: ColumnCombatRules.selectTarget(
-                column = sourceColumn,
-                enemies = enemies,
-                ignoreLaneRestriction = projectile.ignoresLaneRestriction,
-            )
-            if (target == null) continue
+            val target = selectProjectileTarget(projectile, enemies) ?: continue
 
             val targetX = enemyX(target)
             val targetY = target.progress
@@ -426,4 +412,22 @@ class GameEngine(
         message: String,
         tone: BattleLogTone,
     ): List<BattleLogEntry> = (current + BattleLogEntry(timestampSeconds, message, tone)).takeLast(MAX_LOG_ENTRIES)
+}
+
+internal fun selectProjectileTarget(projectile: Projectile, enemies: List<Enemy>): Enemy? {
+    val sourceColumn = projectile.sourceCellIndex.coerceIn(0, GameRules.GRID_SIZE - 1)
+    val existingTarget = enemies.firstOrNull {
+        it.id == projectile.targetEnemyId &&
+            ColumnCombatRules.canAttack(
+                column = sourceColumn,
+                enemy = it,
+                ignoreLaneRestriction = projectile.ignoresLaneRestriction,
+            )
+    }
+    if (existingTarget != null || projectile.ignoresLaneRestriction) return existingTarget
+    return ColumnCombatRules.selectTarget(
+        column = sourceColumn,
+        enemies = enemies,
+        ignoreLaneRestriction = false,
+    )
 }

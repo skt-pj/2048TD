@@ -37,9 +37,11 @@ fun GameApp() {
     val context = LocalContext.current.applicationContext
     val ownedCharacters = remember { StarterRoster.characters }
     val engine = remember { GameEngine(initialFormation = ownedCharacters) }
+    val comboFeverController = remember { ComboFeverController() }
     val rankingRepository = remember(context) { RankingRepository(context) }
 
     var snapshot by remember { mutableStateOf(engine.snapshot()) }
+    var comboFeverSnapshot by remember { mutableStateOf(comboFeverController.snapshot()) }
     var screen by remember { mutableStateOf(AppScreen.GAME) }
     var paused by remember { mutableStateOf(false) }
     var formationDraft by remember { mutableStateOf(snapshot.formation) }
@@ -64,7 +66,10 @@ fun GameApp() {
                 val deltaSeconds = (frame - lastFrame) / 1_000_000_000f
                 lastFrame = frame
                 if (screen == AppScreen.GAME && !paused && snapshot.gameOverReason == null) {
-                    snapshot = engine.tick(deltaSeconds)
+                    comboFeverController.tick(deltaSeconds)
+                    val feverState = comboFeverController.snapshot()
+                    comboFeverSnapshot = feverState
+                    snapshot = engine.tick(deltaSeconds, feverState.feverActive)
                 }
             }
         }
@@ -174,12 +179,21 @@ fun GameApp() {
                         paused = paused,
                         settings = settings,
                         onSettingsChange = { settings = it },
-                        onMove = { direction -> snapshot = engine.move(direction) },
+                        onMove = { direction ->
+                            val moveResult = GameRules.moveWithoutSpawn(snapshot.board, direction)
+                            snapshot = engine.move(direction)
+                            if (moveResult.moved && moveResult.createdValues.isNotEmpty()) {
+                                comboFeverController.onMerge(moveResult.createdValues.size)
+                                comboFeverSnapshot = comboFeverController.snapshot()
+                            }
+                        },
                         onReset = {
                             paused = false
                             rankingRunId = null
                             rankingSubmissionState = RankingSubmissionState.Starting
                             gameSessionId += 1
+                            comboFeverController.reset()
+                            comboFeverSnapshot = comboFeverController.snapshot()
                             snapshot = engine.reset()
                         },
                         onPause = { paused = !paused },
@@ -192,6 +206,7 @@ fun GameApp() {
                         },
                     )
                     ScoreOverlay(score = snapshot.score)
+                    ComboFeverOverlay(state = comboFeverSnapshot)
                     if (snapshot.gameOverReason != null) {
                         RankingGameOverStatusOverlay(rankingSubmissionState)
                     }
@@ -205,6 +220,8 @@ fun GameApp() {
                             rankingRunId = null
                             rankingSubmissionState = RankingSubmissionState.Starting
                             gameSessionId += 1
+                            comboFeverController.reset()
+                            comboFeverSnapshot = comboFeverController.snapshot()
                             snapshot = engine.reset()
                             screen = AppScreen.GAME
                         },
@@ -237,6 +254,8 @@ fun GameApp() {
                         screen = AppScreen.CHARACTERS
                     },
                     onSave = {
+                        comboFeverController.reset()
+                        comboFeverSnapshot = comboFeverController.snapshot()
                         snapshot = engine.setFormation(formationDraft)
                         screen = AppScreen.HOME
                     },

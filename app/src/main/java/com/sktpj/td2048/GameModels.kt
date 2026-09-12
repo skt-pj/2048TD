@@ -56,6 +56,7 @@ data class Projectile(
     val handType: HandType,
     val onHitAbility: CharacterAbility,
     val weaponType: WeaponType = WeaponType.NORMAL,
+    val ignoresLaneRestriction: Boolean = false,
 )
 
 data class ColumnCombatState(

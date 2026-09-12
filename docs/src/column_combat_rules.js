@@ -57,7 +57,8 @@ export function projectileSpeed(type) {
   }[type];
 }
 
-export function canAttack(column, enemy) {
+export function canAttack(column, enemy, ignoreLaneRestriction = false) {
+  if (ignoreLaneRestriction) return true;
   return enemy.enemyType === "BOSS" ? (column === 1 || column === 2) : enemy.lane === column;
 }
 
@@ -65,8 +66,8 @@ export function remainingTime(enemy) {
   return Math.max(0, 1 - enemy.progress) / Math.max(0.0001, enemy.speed);
 }
 
-export function selectTarget(column, enemies) {
-  return enemies.filter((enemy) => canAttack(column, enemy)).sort((a, b) => {
+export function selectTarget(column, enemies, ignoreLaneRestriction = false) {
+  return enemies.filter((enemy) => canAttack(column, enemy, ignoreLaneRestriction)).sort((a, b) => {
     const timeDiff = remainingTime(a) - remainingTime(b);
     if (Math.abs(timeDiff) > 1e-9) return timeDiff;
     if (a.enemyType !== b.enemyType) return a.enemyType === "BOSS" ? -1 : 1;

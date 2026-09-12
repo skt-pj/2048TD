@@ -6,4 +6,4 @@ Source: https://www.adobe.com/products/audition/offers/adobeauditiondlcsfx.html
 
 Adobe states that the collection is royalty-free and that use/distribution is governed by the Adobe Audition EULA. The source Content Files must not be distributed on a standalone basis. These files are included only as integrated game assets for 2048TD.
 
-`SOURCES.tsv` records the Adobe archive and original source filename used for each integrated asset.
+`SOURCES.tsv` records the exact Adobe archive and original source filename used for each integrated asset. Selections are deterministic so the web assets can be reproduced.

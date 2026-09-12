@@ -57,17 +57,26 @@ internal object ColumnCombatRules {
         WeaponType.LASER -> 4.00f
     }
 
-    fun canAttack(column: Int, enemy: Enemy): Boolean {
+    fun canAttack(
+        column: Int,
+        enemy: Enemy,
+        ignoreLaneRestriction: Boolean = false,
+    ): Boolean {
         require(column in 0 until GameRules.GRID_SIZE)
+        if (ignoreLaneRestriction) return true
         return when (enemy.enemyType) {
             EnemyType.NORMAL -> enemy.lane == column
             EnemyType.BOSS -> column == 1 || column == 2
         }
     }
 
-    fun selectTarget(column: Int, enemies: List<Enemy>): Enemy? = enemies
+    fun selectTarget(
+        column: Int,
+        enemies: List<Enemy>,
+        ignoreLaneRestriction: Boolean = false,
+    ): Enemy? = enemies
         .asSequence()
-        .filter { canAttack(column, it) }
+        .filter { canAttack(column, it, ignoreLaneRestriction) }
         .minWithOrNull(
             compareBy<Enemy> { remainingTime(it) }
                 .thenBy { if (it.enemyType == EnemyType.BOSS) 0 else 1 }

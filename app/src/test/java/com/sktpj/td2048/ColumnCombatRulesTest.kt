@@ -48,15 +48,45 @@ class ColumnCombatRulesTest {
         assertFalse(ColumnCombatRules.canAttack(3, boss))
     }
 
+    @Test
+    fun feverTargeting_ignoresNormalLaneAndBossColumnRestrictions() {
+        val lane3 = enemy(id = 1, lane = 3)
+        val boss = enemy(id = 2, type = EnemyType.BOSS, lane = TargetingPolicy.BOSS_LANE)
+        assertTrue(ColumnCombatRules.canAttack(0, lane3, ignoreLaneRestriction = true))
+        assertTrue(ColumnCombatRules.canAttack(3, boss, ignoreLaneRestriction = true))
+    }
+
+    @Test
+    fun feverTargeting_canSelectMostUrgentEnemyAcrossAllLanes() {
+        val local = enemy(id = 1, lane = 0, progress = 0.20f)
+        val urgentOtherLane = enemy(id = 2, lane = 3, progress = 0.90f)
+
+        assertEquals(
+            local.id,
+            ColumnCombatRules.selectTarget(0, listOf(local, urgentOtherLane))?.id,
+        )
+        assertEquals(
+            urgentOtherLane.id,
+            ColumnCombatRules.selectTarget(
+                column = 0,
+                enemies = listOf(local, urgentOtherLane),
+                ignoreLaneRestriction = true,
+            )?.id,
+        )
+    }
+
     private fun enemy(
+        id: Int = 1,
         type: EnemyType = EnemyType.NORMAL,
         lane: Int = 0,
+        progress: Float = 0.5f,
+        speed: Float = 0.1f,
     ) = Enemy(
-        id = 1,
+        id = id,
         enemyType = type,
         lane = lane,
-        progress = 0.5f,
-        speed = 0.1f,
+        progress = progress,
+        speed = speed,
         hp = 100f,
         maxHp = 100f,
         handType = HandType.ROCK,

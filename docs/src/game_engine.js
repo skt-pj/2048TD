@@ -73,7 +73,7 @@ export class GameEngine {
       maxHp: Math.max(1, Number(state.maxHp) || MAX_HP),
       wave: Math.max(1, Number(state.wave) || 1),
       enemies: state.enemies.map((e) => ({ ...e })),
-      projectiles: state.projectiles.map((p) => ({ ...p })),
+      projectiles: state.projectiles.map((p) => ({ ...p, ignoresLaneRestriction: Boolean(p.ignoresLaneRestriction) })),
       cooldowns: Array.isArray(state.cooldowns) ? state.cooldowns.slice(0, 4).map((v) => Math.max(0, Number(v) || 0)) : [0,0,0,0],
       bossWarning: state.bossWarning ? { remainingSeconds: Math.max(0, Number(state.bossWarning.remainingSeconds) || 0) } : null,
       gameOverReason: state.gameOverReason === "BOARD_STUCK" || state.gameOverReason === "HP_ZERO" ? state.gameOverReason : null,
@@ -178,16 +178,18 @@ export class GameEngine {
     }
 
     this.state.cooldowns = this.state.cooldowns.map((value) => Math.max(0, value - delta));
+    const feverActive = this.state.comboFever.feverRemainingSeconds > 0;
     for (let column = 0; column < GRID_SIZE; column += 1) {
       const power = columnPower(this.state.board, column);
       if (power <= 0 || this.state.cooldowns[column] > 0) continue;
-      const target = selectTarget(column, this.state.enemies);
+      const target = selectTarget(column, this.state.enemies, feverActive);
       if (!target) continue;
       const type = weaponType(columnLevel(this.state.board, column));
       const source = this.turretPosition(column);
       this.state.projectiles.push({
         id: this.projectileId++, sourceColumn: column, targetEnemyId: target.id,
         damage: power, x: source.x, y: source.y, speed: projectileSpeed(type), weaponType: type,
+        ignoresLaneRestriction: feverActive,
       });
       this.state.cooldowns[column] = fireIntervalSeconds(type);
     }
@@ -195,8 +197,11 @@ export class GameEngine {
     const hits = [];
     const moving = [];
     for (const projectile of this.state.projectiles) {
-      const existing = this.state.enemies.find((enemy) => enemy.id === projectile.targetEnemyId);
-      const target = existing ?? selectTarget(projectile.sourceColumn, this.state.enemies);
+      const ignoreLaneRestriction = Boolean(projectile.ignoresLaneRestriction);
+      const existing = this.state.enemies.find(
+        (enemy) => enemy.id === projectile.targetEnemyId && canAttack(projectile.sourceColumn, enemy, ignoreLaneRestriction),
+      );
+      const target = existing ?? selectTarget(projectile.sourceColumn, this.state.enemies, ignoreLaneRestriction);
       if (!target) continue;
       const tx = this.enemyX(target);
       const ty = target.progress;
@@ -219,21 +224,24 @@ export class GameEngine {
       for (const projectile of hits) {
         const target = this.state.enemies.find((enemy) => enemy.id === projectile.targetEnemyId);
         if (!target) continue;
+        const ignoreLaneRestriction = Boolean(projectile.ignoresLaneRestriction);
         if ([WeaponType.NORMAL, WeaponType.RAPID, WeaponType.MACHINE_GUN].includes(projectile.weaponType)) {
           addDamage(target.id, projectile.damage);
         } else if (projectile.weaponType === WeaponType.PIERCING) {
           addDamage(target.id, projectile.damage);
           this.state.enemies
-            .filter((enemy) => enemy.id !== target.id && canAttack(projectile.sourceColumn, enemy))
+            .filter((enemy) => enemy.id !== target.id && canAttack(projectile.sourceColumn, enemy, ignoreLaneRestriction))
             .sort((a, b) => b.progress - a.progress).slice(0, 2)
             .forEach((enemy) => addDamage(enemy.id, Math.max(1, Math.trunc(projectile.damage * 0.70))));
         } else if (projectile.weaponType === WeaponType.EXPLOSIVE) {
           addDamage(target.id, projectile.damage);
           this.state.enemies
-            .filter((enemy) => enemy.id !== target.id && canAttack(projectile.sourceColumn, enemy) && Math.abs(enemy.progress - target.progress) <= 0.14)
+            .filter((enemy) => enemy.id !== target.id && canAttack(projectile.sourceColumn, enemy, ignoreLaneRestriction) && Math.abs(enemy.progress - target.progress) <= 0.14)
             .forEach((enemy) => addDamage(enemy.id, Math.max(1, Math.trunc(projectile.damage * 0.60))));
         } else if (projectile.weaponType === WeaponType.LASER) {
-          this.state.enemies.filter((enemy) => canAttack(projectile.sourceColumn, enemy)).forEach((enemy) => addDamage(enemy.id, projectile.damage));
+          this.state.enemies
+            .filter((enemy) => canAttack(projectile.sourceColumn, enemy, ignoreLaneRestriction))
+            .forEach((enemy) => addDamage(enemy.id, projectile.damage));
         }
       }
       const survivors = [];
@@ -288,4 +296,5 @@ export const CURRENT_RULES = Object.freeze({
   BOSS_WARNING_SECONDS,
   BOSS_SPEED_RATIO,
   BOSS_HP_RATIO,
+  FEVER_IGNORES_LANE_RESTRICTIONS: true,
 });

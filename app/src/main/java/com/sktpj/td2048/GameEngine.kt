@@ -97,7 +97,7 @@ class GameEngine(
         return state
     }
 
-    fun tick(deltaSeconds: Float): GameSnapshot {
+    fun tick(deltaSeconds: Float, feverActive: Boolean = false): GameSnapshot {
         if (state.gameOverReason != null) return state
         val delta = deltaSeconds.coerceIn(0f, 0.05f)
         val elapsedSeconds = state.elapsedSeconds + delta
@@ -186,7 +186,11 @@ class GameEngine(
         for (column in 0 until GameRules.GRID_SIZE) {
             val power = ColumnCombatRules.columnPower(state.board, column)
             if (power <= 0 || cooldowns[column] > 0f) continue
-            val target = ColumnCombatRules.selectTarget(column, enemies) ?: continue
+            val target = ColumnCombatRules.selectTarget(
+                column = column,
+                enemies = enemies,
+                ignoreLaneRestriction = feverActive,
+            ) ?: continue
             val level = ColumnCombatRules.columnLevel(state.board, column)
             val weaponType = ColumnCombatRules.weaponType(level)
             val (sourceX, sourceY) = turretPosition(column)
@@ -202,6 +206,7 @@ class GameEngine(
                 handType = HandType.ROCK,
                 onHitAbility = CharacterAbility.NONE,
                 weaponType = weaponType,
+                ignoresLaneRestriction = feverActive,
             )
             cooldowns[column] = ColumnCombatRules.fireIntervalSeconds(weaponType)
         }
@@ -210,8 +215,19 @@ class GameEngine(
         val moving = mutableListOf<Projectile>()
         for (projectile in projectiles) {
             val sourceColumn = projectile.sourceCellIndex.coerceIn(0, GameRules.GRID_SIZE - 1)
-            val existingTarget = enemies.firstOrNull { it.id == projectile.targetEnemyId }
-            val target = existingTarget ?: ColumnCombatRules.selectTarget(sourceColumn, enemies)
+            val existingTarget = enemies.firstOrNull {
+                it.id == projectile.targetEnemyId &&
+                    ColumnCombatRules.canAttack(
+                        column = sourceColumn,
+                        enemy = it,
+                        ignoreLaneRestriction = projectile.ignoresLaneRestriction,
+                    )
+            }
+            val target = existingTarget ?: ColumnCombatRules.selectTarget(
+                column = sourceColumn,
+                enemies = enemies,
+                ignoreLaneRestriction = projectile.ignoresLaneRestriction,
+            )
             if (target == null) continue
 
             val targetX = enemyX(target)
@@ -247,7 +263,14 @@ class GameEngine(
                     WeaponType.PIERCING -> {
                         addDamage(damageByEnemyId, target.id, projectile.damage)
                         enemies.asSequence()
-                            .filter { it.id != target.id && ColumnCombatRules.canAttack(sourceColumn, it) }
+                            .filter {
+                                it.id != target.id &&
+                                    ColumnCombatRules.canAttack(
+                                        sourceColumn,
+                                        it,
+                                        projectile.ignoresLaneRestriction,
+                                    )
+                            }
                             .sortedByDescending { it.progress }
                             .take(2)
                             .forEach { addDamage(damageByEnemyId, it.id, (projectile.damage * 0.70f).toInt().coerceAtLeast(1)) }
@@ -258,7 +281,11 @@ class GameEngine(
                         enemies.asSequence()
                             .filter {
                                 it.id != target.id &&
-                                    ColumnCombatRules.canAttack(sourceColumn, it) &&
+                                    ColumnCombatRules.canAttack(
+                                        sourceColumn,
+                                        it,
+                                        projectile.ignoresLaneRestriction,
+                                    ) &&
                                     abs(it.progress - target.progress) <= 0.14f
                             }
                             .forEach { addDamage(damageByEnemyId, it.id, (projectile.damage * 0.60f).toInt().coerceAtLeast(1)) }
@@ -266,7 +293,13 @@ class GameEngine(
 
                     WeaponType.LASER -> {
                         enemies.asSequence()
-                            .filter { ColumnCombatRules.canAttack(sourceColumn, it) }
+                            .filter {
+                                ColumnCombatRules.canAttack(
+                                    sourceColumn,
+                                    it,
+                                    projectile.ignoresLaneRestriction,
+                                )
+                            }
                             .forEach { addDamage(damageByEnemyId, it.id, projectile.damage) }
                     }
                 }

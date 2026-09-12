@@ -19,6 +19,7 @@ rm -f \
 cat > "$OUT_DIR/src/bootstrap.js" <<'EOF'
 import "./audio.js?v=youtube-platform-1";
 import "./bgm.js?v=youtube-platform-1";
+import "./help.js?v=settings-help-1";
 import "./main.js?v=youtube-platform-3";
 EOF
 

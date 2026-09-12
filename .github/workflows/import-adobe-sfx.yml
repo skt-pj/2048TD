@@ -17,6 +17,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Validate web SFX modules
+        shell: bash
+        run: |
+          node --check docs/src/audio.js
+          node --check docs/src/bootstrap.js
+
+      - name: Install ffmpeg
+        shell: bash
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+
       - name: Download and select Adobe Audition SFX
         shell: bash
         run: |
@@ -44,7 +56,7 @@ jobs:
             local pack=''
             IFS=',' read -ra candidates <<< "$packs"
             for candidate in "${candidates[@]}"; do
-              source="$(find "$TMP/$candidate" -type f \( -iname '*.wav' -o -iname '*.aif' -o -iname '*.aiff' \) | grep -Ei "$pattern" | sort | head -n 1 || true)"
+              source="$(find "$TMP/$candidate" -type f \( -iname '*.wav' -o -iname '*.aif' -o -iname '*.aiff' \) | grep -Ei "$pattern" | sort | sed -n '1p' || true)"
               if [[ -n "$source" ]]; then
                 pack="$candidate"
                 break
@@ -52,7 +64,7 @@ jobs:
             done
             if [[ -z "$source" ]]; then
               pack="${candidates[0]}"
-              source="$(find "$TMP/$pack" -type f \( -iname '*.wav' -o -iname '*.aif' -o -iname '*.aiff' \) | sort | head -n 1)"
+              source="$(find "$TMP/$pack" -type f \( -iname '*.wav' -o -iname '*.aif' -o -iname '*.aiff' \) | sort | sed -n '1p')"
             fi
             if [[ -z "$source" ]]; then
               echo "No audio source found for $output" >&2

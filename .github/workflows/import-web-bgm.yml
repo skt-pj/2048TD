@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - .github/workflows/import-web-bgm.yml
+      - .bgm-import/**
 
 permissions:
   contents: write
@@ -17,43 +17,25 @@ jobs:
         with:
           ref: main
 
-      - name: Download Suno source media and extract BGM
+      - name: Reassemble uploaded BGM assets
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p docs/assets/audio .tmp-bgm
+          mkdir -p docs/assets/audio
+          cat .bgm-import/default/*.b64 | base64 --decode > docs/assets/audio/default.ogg
+          cat .bgm-import/fiver/*.b64 | base64 --decode > docs/assets/audio/fiver.ogg
+          test -s docs/assets/audio/default.ogg
+          test -s docs/assets/audio/fiver.ogg
+          ffprobe -v error -select_streams a:0 -show_entries stream=codec_name,channels -of default=nw=1 docs/assets/audio/default.ogg
+          ffprobe -v error -select_streams a:0 -show_entries stream=codec_name,channels -of default=nw=1 docs/assets/audio/fiver.ogg
 
-          extract_track() {
-            local id="$1"
-            local output="$2"
-            local source=".tmp-bgm/${id}.mp4"
-            curl --fail --location --retry 4 --retry-delay 2 \
-              "https://cdn1.suno.ai/${id}.mp4" \
-              --output "${source}"
-            test -s "${source}"
-            ffmpeg -hide_banner -loglevel error -y \
-              -i "${source}" -map 0:a:0 -vn \
-              -c:a libmp3lame -q:a 2 "${output}"
-          }
-
-          extract_track "e77efb54-7aa0-41d6-adf3-e11bb56f0877" docs/assets/audio/default.mp3
-          extract_track "9bd397e9-5ddf-49de-b6da-ca7832c9e7fe" docs/assets/audio/fiver.mp3
-
-          test -s docs/assets/audio/default.mp3
-          test -s docs/assets/audio/fiver.mp3
-          file docs/assets/audio/default.mp3 | grep -qiE 'audio|mpeg'
-          file docs/assets/audio/fiver.mp3 | grep -qiE 'audio|mpeg'
-
-      - name: Commit BGM assets
+      - name: Commit final BGM assets and remove importer
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/assets/audio/default.mp3 docs/assets/audio/fiver.mp3
-          if git diff --cached --quiet; then
-            echo "BGM assets are already current."
-            exit 0
-          fi
+          git add docs/assets/audio/default.ogg docs/assets/audio/fiver.ogg
+          git rm -r .bgm-import .github/workflows/import-web-bgm.yml
           git commit -m "Add web BGM assets"
           git push origin HEAD:main

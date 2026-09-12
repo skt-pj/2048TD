@@ -27,6 +27,52 @@ const WEAPON_COLORS = {
   LASER: "#ff35d3",
 };
 
+const WEAPON_SPRITES = {
+  NORMAL: {
+    cooldown: .90,
+    idle: { src: new URL("../assets/sprites/weapons/W01_blaster_idle.png", import.meta.url).href, frames: 4, fps: 4 },
+    fire: { src: new URL("../assets/sprites/weapons/W01_blaster_fire.png", import.meta.url).href, frames: 4, fps: 12 },
+  },
+  RAPID: {
+    cooldown: .62,
+    idle: { src: new URL("../assets/sprites/weapons/W02_needler_idle.png", import.meta.url).href, frames: 4, fps: 6 },
+    fire: { src: new URL("../assets/sprites/weapons/W02_needler_fire.png", import.meta.url).href, frames: 6, fps: 15 },
+  },
+  MACHINE_GUN: {
+    cooldown: .24,
+    idle: { src: new URL("../assets/sprites/weapons/W03_gatler_idle.png", import.meta.url).href, frames: 4, fps: 4 },
+    fire: { src: new URL("../assets/sprites/weapons/W03_gatler_fire.png", import.meta.url).href, frames: 6, fps: 18 },
+  },
+  PIERCING: {
+    cooldown: .72,
+    idle: { src: new URL("../assets/sprites/weapons/W04_rail_lancer_idle.png", import.meta.url).href, frames: 4, fps: 5 },
+    fire: { src: new URL("../assets/sprites/weapons/W04_rail_lancer_fire.png", import.meta.url).href, frames: 6, fps: 12 },
+  },
+  EXPLOSIVE: {
+    cooldown: .95,
+    idle: { src: new URL("../assets/sprites/weapons/W05_bomb_howl_idle.png", import.meta.url).href, frames: 4, fps: 4 },
+    fire: { src: new URL("../assets/sprites/weapons/W05_bomb_howl_fire.png", import.meta.url).href, frames: 6, fps: 10 },
+  },
+  LASER: {
+    cooldown: .78,
+    idle: { src: new URL("../assets/sprites/weapons/W06_helios_idle.png", import.meta.url).href, frames: 6, fps: 6 },
+    fire: { src: new URL("../assets/sprites/weapons/W06_helios_fire.png", import.meta.url).href, frames: 8, fps: 14 },
+  },
+};
+
+const weaponImages = new Map();
+
+function weaponImage(src) {
+  let image = weaponImages.get(src);
+  if (!image) {
+    image = new Image();
+    image.decoding = "async";
+    image.src = src;
+    weaponImages.set(src, image);
+  }
+  return image;
+}
+
 function resizeCanvas(canvas) {
   const rect = canvas.getBoundingClientRect();
   const dpr = Math.min(2, globalThis.devicePixelRatio || 1);
@@ -62,7 +108,8 @@ export function renderBattle(canvas, state, landscape, landscapeHand = "left") {
     const logical = { x: (col + 0.5) / GRID_SIZE, y: 0.955 };
     const point = screenPoint(logical.x, logical.y, landscape, w, h, landscapeHand);
     const type = weaponType(columnLevel(state.board, col));
-    const ready = 1 - Math.min(1, state.cooldowns[col] / Math.max(0.01, ({ NORMAL:.90, RAPID:.62, MACHINE_GUN:.24, PIERCING:.72, EXPLOSIVE:.95, LASER:.78 })[type]));
+    const spec = WEAPON_SPRITES[type] ?? WEAPON_SPRITES.NORMAL;
+    const ready = 1 - Math.min(1, state.cooldowns[col] / Math.max(0.01, spec.cooldown));
     drawTurret(ctx, point.x, point.y, type, landscape, ready, fever, phase, landscapeHand);
   }
 
@@ -170,19 +217,43 @@ function drawEnemy(ctx, enemy, landscape, w, h, fever, phase, landscapeHand) {
   }
 }
 
+function drawWeaponFrame(ctx, type, readyRatio, phase) {
+  const spec = WEAPON_SPRITES[type] ?? WEAPON_SPRITES.NORMAL;
+  const ready = Math.max(0, Math.min(1, readyRatio));
+  const sinceShot = spec.cooldown * ready;
+  const fireDuration = spec.fire.frames / spec.fire.fps;
+  const firing = ready < 1 && sinceShot < fireDuration;
+  const animation = firing ? spec.fire : spec.idle;
+  const seconds = firing ? sinceShot : phase;
+  const frame = firing
+    ? Math.min(animation.frames - 1, Math.max(0, Math.floor(seconds * animation.fps)))
+    : Math.max(0, Math.floor(seconds * animation.fps) % animation.frames);
+  const image = weaponImage(animation.src);
+  if (!image.complete || image.naturalWidth <= 0) return false;
+
+  const size = 56;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(image, frame * 64, 0, 64, 64, -size / 2, -size * .875, size, size);
+  return true;
+}
+
 function drawTurret(ctx, x, y, type, landscape, readyRatio, fever, phase, landscapeHand) {
   const color = WEAPON_COLORS[type] ?? WEAPON_COLORS.NORMAL;
   ctx.save();
   ctx.translate(x, y);
   if (landscape) ctx.rotate(landscapeHand === "right" ? -Math.PI / 2 : Math.PI / 2);
-  ctx.fillStyle = color;
-  ctx.fillRect(-11, -8, 22, 9);
-  ctx.fillRect(-2.5, -18, 5, 12);
+
+  if (!drawWeaponFrame(ctx, type, readyRatio, phase)) {
+    ctx.fillStyle = color;
+    ctx.fillRect(-11, -8, 22, 9);
+    ctx.fillRect(-2.5, -18, 5, 12);
+  }
+
   ctx.strokeStyle = color; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.arc(0, -5, 15, -Math.PI/2, -Math.PI/2 + Math.PI*2*Math.max(0,Math.min(1,readyRatio))); ctx.stroke();
+  ctx.beginPath(); ctx.arc(0, -5, 18, -Math.PI/2, -Math.PI/2 + Math.PI*2*Math.max(0,Math.min(1,readyRatio))); ctx.stroke();
   if (fever) {
     ctx.strokeStyle = `rgba(255,53,211,${.6 + .25*Math.sin(phase*6)})`; ctx.lineWidth = 2.5;
-    ctx.beginPath(); ctx.arc(0, -5, 20, phase*2, phase*2 + Math.PI*.9); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, -5, 24, phase*2, phase*2 + Math.PI*.9); ctx.stroke();
   }
   ctx.restore();
 }

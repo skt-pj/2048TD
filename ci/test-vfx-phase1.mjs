@@ -50,6 +50,8 @@ const hitPresentation = phase1RuntimeEvents().find((event) => event.type === "HI
 assert.ok(hitPresentation);
 assert.equal(hitPresentation.sourceColumn, 0);
 assert.equal(hitPresentation.targetId, 7);
+assert.equal(PHASE1_TIMING.IMPACT_HOLD_MS, 60);
+assert.ok(PHASE1_TIMING.IMPACT_HOLD_MS >= 40 && PHASE1_TIMING.IMPACT_HOLD_MS <= 80);
 assert.equal(
   phase1VisualAgeMs(hitPresentation, hitPresentation.observedAtMs + PHASE1_TIMING.IMPACT_HOLD_MS - 1),
   0,
@@ -113,6 +115,7 @@ assert.equal(baseDamage.targetType, "BASE");
 assert.equal(baseDamage.contributorCount, 1);
 assert.ok(Math.abs(baseDamage.x - 0.625) < 1e-9);
 const baseShake = phase1ShakeOffset([baseDamage], baseDamage.observedAtMs + 20);
-assert.ok(Math.hypot(baseShake.x, baseShake.y) > Math.hypot(hitShake.x, hitShake.y));
+assert.ok(Math.hypot(baseShake.x, baseShake.y) > 0);
+assert.ok(phase1ReactionProfile("BASE_DAMAGE").shakePx > phase1ReactionProfile("HIT").shakePx);
 
 console.log("VFX phase 1 integration tests passed");

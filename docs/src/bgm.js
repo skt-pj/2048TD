@@ -127,6 +127,7 @@ const controller = new BgmController();
 const app = document.getElementById("app");
 const settings = document.getElementById("settings-overlay");
 const gameOver = document.getElementById("game-over");
+let gameOverWasVisible = gameOver ? !gameOver.hidden : false;
 
 function gameShouldPause() {
   return document.hidden || !settings?.hidden || !gameOver?.hidden;
@@ -164,7 +165,9 @@ if (settings) {
 
 if (gameOver) {
   new MutationObserver(() => {
-    if (gameOver.hidden) controller.resetToNormal();
+    const visible = !gameOver.hidden;
+    if (gameOverWasVisible && !visible) controller.resetToNormal();
+    gameOverWasVisible = visible;
     syncPlaybackState();
   }).observe(gameOver, {
     attributes: true,

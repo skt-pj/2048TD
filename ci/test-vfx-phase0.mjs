@@ -29,6 +29,8 @@ engine.state.projectiles = [{
 engine.spawnTimer = 0;
 
 engine.tick(0.01);
+assert.equal(engine.state.enemies.length, 1);
+assert.equal(engine.state.enemies[0].hp, 80);
 assert.equal(engine.state.vfxEvents.length, 1);
 const event = engine.state.vfxEvents[0];
 assert.equal(event.targetId, 7);

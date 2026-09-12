@@ -1,0 +1,27 @@
+name: YouTube Playables Bundle
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "ci/build-playables.sh"
+      - ".github/workflows/playables.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Playables bundle
+        run: bash ci/build-playables.sh
+      - name: Upload Playables ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: 2048TD-playables
+          path: build/2048TD-playables.zip
+          if-no-files-found: error

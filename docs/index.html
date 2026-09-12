@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#020406">
   <title>2048TD</title>
   <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./settings-audio.css">
 </head>
 <body>
   <div id="loading" class="loading" role="status" aria-live="polite">Loading 2048TD…</div>
@@ -51,7 +52,6 @@
 
     <div id="fever-transition" class="fever-transition" hidden aria-live="assertive">FEVER</div>
 
-
     <div id="settings-overlay" class="settings-overlay" hidden>
       <button id="settings-backdrop" class="settings-backdrop" type="button" tabindex="-1" aria-label="Close settings"></button>
       <section class="settings-sheet" role="dialog" aria-modal="true" aria-labelledby="settings-title">
@@ -94,6 +94,25 @@
             </button>
           </div>
           <p id="portrait-unchanged" class="settings-note">Portrait layout is unchanged.</p>
+        </div>
+
+        <div class="settings-section settings-audio-section">
+          <div class="settings-section-title-row audio-title-row">
+            <div>
+              <h3 id="sound-effects-title">Sound effects</h3>
+              <p id="sound-effects-description">Enable or disable game sound effects.</p>
+            </div>
+            <button id="sound-effects-toggle" class="sound-toggle" type="button" role="switch" aria-checked="true" aria-labelledby="sound-effects-title sound-effects-toggle-label">
+              <span class="sound-toggle-track" aria-hidden="true"><span class="sound-toggle-thumb"></span></span>
+              <span id="sound-effects-toggle-label" class="sound-toggle-label">ON</span>
+            </button>
+          </div>
+
+          <div class="sound-volume-row">
+            <label id="sound-effects-volume-label" for="sound-effects-volume">Volume</label>
+            <output id="sound-effects-volume-value" for="sound-effects-volume">100%</output>
+          </div>
+          <input id="sound-effects-volume" class="sound-volume" type="range" min="0" max="100" step="1" value="100" aria-labelledby="sound-effects-volume-label" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
         </div>
 
         <div class="settings-actions">

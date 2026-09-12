@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#020406">
   <title>2048TD</title>
   <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./fever-hud.css">
   <link rel="stylesheet" href="./settings-audio.css">
   <link rel="stylesheet" href="./ranking.css">
 </head>
@@ -37,11 +38,12 @@
         <div id="combo-hud" class="combo-hud" aria-live="polite" hidden>
           <strong id="combo-number">1</strong><span>COMBO</span>
         </div>
-        <div id="fever-meter" class="fever-meter" aria-label="Fever gauge">
-          <div class="fever-track"><div id="fever-fill" class="fever-fill"></div></div>
-          <strong>FEVER</strong>
-        </div>
       </section>
+
+      <div id="fever-meter" class="fever-meter" aria-label="Fever gauge">
+        <div class="fever-track"><div id="fever-fill" class="fever-fill"></div></div>
+        <strong>FEVER</strong>
+      </div>
 
       <section id="weapon-strip" class="weapon-strip" aria-label="Column weapons"></section>
 

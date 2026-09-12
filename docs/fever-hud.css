@@ -1,0 +1,57 @@
+.fever-meter {
+  position: relative;
+  z-index: 2;
+  left: auto;
+  bottom: auto;
+  transform: none;
+  width: min(52%, 320px);
+  height: 34px;
+  align-self: center;
+  justify-self: center;
+  grid-row: 2;
+}
+
+.playfield-shell {
+  grid-template-rows: minmax(180px, .82fr) 40px 58px minmax(248px, 1.18fr);
+}
+
+@media (max-height: 650px) and (orientation: portrait) {
+  .playfield-shell {
+    grid-template-rows: minmax(155px, .74fr) 34px 51px minmax(215px, 1.2fr);
+  }
+
+  .fever-meter {
+    height: 29px;
+  }
+}
+
+@media (orientation: landscape) {
+  .playfield-shell {
+    grid-template-columns: minmax(250px, 42dvh) 72px minmax(280px, 1fr);
+    grid-template-rows: 34px minmax(0, 1fr);
+  }
+
+  .fever-meter {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    width: min(48%, 330px);
+    height: 30px;
+  }
+
+  .board-section,
+  .weapon-strip,
+  .battle-panel {
+    grid-row: 2;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 390px) {
+  .playfield-shell {
+    grid-template-columns: minmax(220px, 42dvh) 62px minmax(260px, 1fr);
+    grid-template-rows: 29px minmax(0, 1fr);
+  }
+
+  .fever-meter {
+    height: 27px;
+  }
+}

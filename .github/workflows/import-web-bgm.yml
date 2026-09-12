@@ -17,25 +17,27 @@ jobs:
         with:
           ref: main
 
-      - name: Resolve current Suno delivery and download BGM
+      - name: Download Suno source media and extract BGM
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p docs/assets/audio
+          mkdir -p docs/assets/audio .tmp-bgm
 
-          download_track() {
+          extract_track() {
             local id="$1"
             local output="$2"
+            local source=".tmp-bgm/${id}.mp4"
             curl --fail --location --retry 4 --retry-delay 2 \
-              --get \
-              --data-urlencode "url=https://suno.com/song/${id}" \
-              --data-urlencode "format=mp3" \
-              "https://sunodownloader.ai/api/download" \
-              --output "${output}"
+              "https://cdn1.suno.ai/${id}.mp4" \
+              --output "${source}"
+            test -s "${source}"
+            ffmpeg -hide_banner -loglevel error -y \
+              -i "${source}" -map 0:a:0 -vn \
+              -c:a libmp3lame -q:a 2 "${output}"
           }
 
-          download_track "e77efb54-7aa0-41d6-adf3-e11bb56f0877" docs/assets/audio/default.mp3
-          download_track "9bd397e9-5ddf-49de-b6da-ca7832c9e7fe" docs/assets/audio/fiver.mp3
+          extract_track "e77efb54-7aa0-41d6-adf3-e11bb56f0877" docs/assets/audio/default.mp3
+          extract_track "9bd397e9-5ddf-49de-b6da-ca7832c9e7fe" docs/assets/audio/fiver.mp3
 
           test -s docs/assets/audio/default.mp3
           test -s docs/assets/audio/fiver.mp3

@@ -121,6 +121,13 @@ function screenPoint(x, y, landscape, w, h, landscapeHand = "left") {
   return { x: p.x * w, y: p.y * h };
 }
 
+function enemyLogicalX(enemy) {
+  if (enemy.enemyType === "BOSS") return .5;
+  const x = Number(enemy.x);
+  if (Number.isFinite(x)) return Math.max(0, Math.min(1, x));
+  return (enemy.lane + .5) / GRID_SIZE;
+}
+
 export function renderBattle(canvas, state, landscape, landscapeHand = "left") {
   const { ctx, w, h } = resizeCanvas(canvas);
   const fever = feverActive(state.comboFever);
@@ -222,7 +229,7 @@ function drawDefenseLine(ctx, w, h, landscape, fever, phase, landscapeHand) {
 }
 
 function latestHitForEnemy(enemy, events) {
-  const logicalX = enemy.enemyType === "BOSS" ? .5 : (enemy.lane + .5) / GRID_SIZE;
+  const logicalX = enemyLogicalX(enemy);
   let best = null;
   let bestDistance = Infinity;
   for (const event of events) {
@@ -272,7 +279,7 @@ function drawEnemySprite(ctx, x, y, spriteId, animationName, seconds, displaySiz
 }
 
 function drawEnemy(ctx, enemy, hitEvent, landscape, w, h, fever, phase, landscapeHand) {
-  const logicalX = enemy.enemyType === "BOSS" ? .5 : (enemy.lane + .5) / GRID_SIZE;
+  const logicalX = enemyLogicalX(enemy);
   const point = screenPoint(logicalX, enemy.progress, landscape, w, h, landscapeHand);
   const base = Math.min(w, h);
   const r = enemy.enemyType === "BOSS" ? Math.max(18, base * .065) : Math.max(10, base * .033);

@@ -47,9 +47,12 @@ replacement = "async function initializeRanking(_saved) {\n  hideStandaloneRanki
 path.write_text(text[:start] + replacement + text[end:], encoding="utf-8")
 PY
 
-# Fail closed if standalone ranking code or its third-party endpoint leaks into
-# the submission artifact. YouTube can scan/analyze the submitted JavaScript.
-if grep -R -n -E 'ranking_transport\.js|ranking\.js|2048td-ranking\.yukigbr3100\.workers\.dev' "$OUT_DIR"; then
+# Fail closed if the standalone ranking module/transport or its third-party
+# endpoint leaks into the submission artifact. Match the exact module reference
+# so personal_ranking.js remains allowed.
+if grep -R -n -F "ranking_transport.js" "$OUT_DIR" || \
+   grep -R -n -F "./ranking.js" "$OUT_DIR" || \
+   grep -R -n -F "2048td-ranking.yukigbr3100.workers.dev" "$OUT_DIR"; then
   echo "Playables bundle contains standalone ranking code or endpoint references." >&2
   exit 1
 fi

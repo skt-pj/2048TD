@@ -57,11 +57,15 @@ function renderCard(index, label, draw) {
 }
 
 renderCard(0, "NORMAL HIT", (c) => {
+  const point = { x: CARD_W * 0.56, y: CARD_H * 0.46 };
+  const previous = { x: CARD_W * 0.56, y: CARD_H * 0.61 };
+  const source = { x: CARD_W * 0.56, y: CARD_H * 0.92 };
+  phase2.drawPhase2ProjectileTrail(c, { weaponType: "NORMAL" }, point, previous, source, false);
   phase2.drawPhase2Impact(
     c,
     { type: "HIT", weaponType: "NORMAL", particleBudget: 6 },
-    { x: CARD_W * 0.56, y: CARD_H * 0.46 },
-    { x: CARD_W * 0.56, y: CARD_H * 0.92 },
+    point,
+    source,
     85,
   );
 });
@@ -149,7 +153,7 @@ renderCard(7, "BOSS DEATH", (c) => {
     c,
     { id: 57, type: "BOSS_KILL", targetType: "BOSS", particleBudget: 18 },
     { x: CARD_W / 2, y: CARD_H / 2 },
-    290,
+    180,
     CARD_W,
     CARD_H,
   );

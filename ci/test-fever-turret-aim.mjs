@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import "../docs/src/enemy_horde.js";
-import { GameEngine } from "../docs/src/game_engine.js?v=turret-aim-aura-1";
+import { GameEngine } from "../docs/src/game_engine.js?v=fever-aura-lite-2";
 
 function emptyBoard() {
   return Array(16).fill(0);
@@ -104,6 +104,23 @@ function enemy(id, lane, progress = 0.4, x = null, laneRadius = 0.05) {
     false,
     "normal-mode aiming must preserve normal lane restrictions",
   );
+}
+
+{
+  const engine = new GameEngine(() => 0.5);
+  const board = emptyBoard();
+  board[0] = 2;
+  board[1] = 2;
+  engine.state.board = board;
+  engine.state.enemies = [enemy(250, 0, 0.4, 0.22, 0.05)];
+  engine.state.projectiles = [];
+  engine.state.cooldowns = [0, 0, 0, 0];
+  engine.state.comboFever.feverRemainingSeconds = 0;
+
+  engine.tick(0.016);
+
+  assert.equal(engine.state.turretAims[0].targetEnemyId, 250, "source lane should acquire an enemy crossing the lane boundary");
+  assert.equal(engine.state.turretAims[1].targetEnemyId, 250, "adjacent lane should also acquire an enemy crossing the lane boundary");
 }
 
 {

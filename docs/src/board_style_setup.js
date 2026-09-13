@@ -1,6 +1,6 @@
 const styleLink = document.createElement("link");
 styleLink.rel = "stylesheet";
-styleLink.href = new URL("../board-styles.css?v=board-style-1", import.meta.url).href;
+styleLink.href = new URL("../board-styles.css?v=board-style-2", import.meta.url).href;
 document.head.appendChild(styleLink);
 
 const firstAudioSection = document.querySelector(".settings-audio-section");

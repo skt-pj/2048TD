@@ -5,6 +5,7 @@ import "./vfx_phase2.js?v=vfx-phase2-1";
 import "./vfx_phase3.js?v=vfx-phase3-1";
 import "./bgm.js?v=youtube-platform-1";
 import "./help.js?v=settings-help-1";
+import "./board_style_setup.js?v=board-style-1";
 
 const inYouTube = typeof globalThis.ytgame !== "undefined" && Boolean(globalThis.ytgame.IN_PLAYABLES_ENV);
 
@@ -12,7 +13,7 @@ async function start() {
   if (!inYouTube) {
     await import("./ranking_transport.js?v=ranking-save-2");
   }
-  await import("./main.js?v=youtube-platform-2");
+  await import("./main.js?v=board-style-1");
 }
 
 start().catch((error) => {

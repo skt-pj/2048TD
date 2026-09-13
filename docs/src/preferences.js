@@ -3,12 +3,24 @@ export const LandscapeHand = Object.freeze({
   RIGHT: "right",
 });
 
+export const BoardStyle = Object.freeze({
+  CLASSIC: "classic",
+  MODERN: "modern",
+  SF: "sf",
+});
+
 const AUDIO_DEFAULTS_VERSION = 2;
 
 function normalizeVolume(value, fallback) {
   const number = Number(value);
   if (!Number.isFinite(number)) return fallback;
   return Math.max(0, Math.min(1, number));
+}
+
+function normalizeBoardStyle(value) {
+  if (value === BoardStyle.MODERN) return BoardStyle.MODERN;
+  if (value === BoardStyle.SF) return BoardStyle.SF;
+  return BoardStyle.CLASSIC;
 }
 
 export function normalizePreferences(raw) {
@@ -20,6 +32,7 @@ export function normalizePreferences(raw) {
     landscapeHand: raw?.landscapeHand === LandscapeHand.RIGHT
       ? LandscapeHand.RIGHT
       : LandscapeHand.LEFT,
+    boardStyle: normalizeBoardStyle(raw?.boardStyle),
     sfxEnabled: raw?.sfxEnabled !== false,
     sfxVolume: migrateLegacySfxDefault ? 0.30 : normalizeVolume(raw?.sfxVolume, 0.30),
     bgmEnabled: raw?.bgmEnabled !== false,

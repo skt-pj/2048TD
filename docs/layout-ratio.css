@@ -1,28 +1,76 @@
 /* Layout contract:
-   - Portrait: battle and 2048 sections split remaining play space 1:1.
-   - Landscape: battle and 2048 sections split remaining play space 1:1.
-   - Weapon strip stays compact and never becomes a flexible third play area.
-   - Handedness changes side only, never size. */
+   Portrait is width-driven:
+   - Battlefield width W is the source of truth.
+   - The visible 2048 board is exactly W x W.
+   - The compact weapon strip is fixed-height.
+   - Battlefield height is the remaining playfield height after subtracting
+     the square board and weapon strip.
+   - Battle lane centers, weapon-card centers, and 2048 column centers share
+     the same x coordinates.
+   Landscape keeps equal battle/board allocation; handedness changes side only. */
 
 .playfield-shell {
   min-height: 0;
   display: grid;
-  grid-template-rows: minmax(0, 1fr) 54px minmax(0, 1fr);
 }
 
-.battle-panel {
-  grid-row: 1;
-  min-height: 0;
-}
+/* Portrait: derive every vertical size from the battlefield width. */
+@media (orientation: portrait) {
+  .playfield-shell {
+    width: min(100vw, 560px);
+    max-width: 100vw;
+    height: 100%;
+    margin: 0 auto;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) 54px auto;
+  }
 
-.weapon-strip {
-  grid-row: 2;
-  min-height: 0;
-}
+  .battle-panel {
+    grid-column: 1;
+    grid-row: 1;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+  }
 
-.board-section {
-  grid-row: 3;
-  min-height: 0;
+  .weapon-strip {
+    grid-column: 1;
+    grid-row: 2;
+    width: 100%;
+    height: 54px;
+    min-height: 0;
+  }
+
+  .board-section {
+    grid-column: 1;
+    grid-row: 3;
+    width: 100%;
+    height: auto;
+    min-width: 0;
+    min-height: 0;
+    aspect-ratio: 1 / 1;
+    padding: 0;
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  /* The heading must not steal height from the width-derived square. */
+  .board-heading {
+    display: none;
+  }
+
+  .board {
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    aspect-ratio: 1 / 1;
+    margin: 0;
+    justify-self: stretch;
+    align-self: stretch;
+    /* p = gap / 2 keeps tile-column centers exactly on battle-lane centers. */
+    padding: 2px;
+    gap: 4px;
+  }
 }
 
 .hand-preview {
@@ -31,7 +79,11 @@
 
 @media (max-height: 650px) and (orientation: portrait) {
   .playfield-shell {
-    grid-template-rows: minmax(0, 1fr) 46px minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) 46px auto;
+  }
+
+  .weapon-strip {
+    height: 46px;
   }
 }
 

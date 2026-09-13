@@ -15,6 +15,8 @@ function reservedAmbientParticles(engine) {
 }
 
 function enemyX(enemy) {
+  const x = Number(enemy?.x);
+  if (Number.isFinite(x)) return Math.max(0, Math.min(1, x));
   return enemy.enemyType === "BOSS" ? 0.5 : (enemy.lane + 0.5) / 4;
 }
 
@@ -31,9 +33,15 @@ function addContribution(map, enemy, projectile, damage) {
   if (!enemy || !projectile || damage <= 0) return;
   const contribution = {
     projectileId: Number(projectile.id) || null,
-    weaponType: projectile.weaponType ?? null,
+    weaponType: projectile.visualWeaponType ?? projectile.weaponType ?? null,
     sourceColumn: Number.isFinite(Number(projectile.sourceColumn)) ? Number(projectile.sourceColumn) : null,
     damage: Math.max(0, Math.trunc(Number(damage) || 0)),
+    projectileKind: projectile.projectileKind ?? null,
+    effectRadius: Math.max(0, Number(projectile.effectRadius) || 0),
+    lineWidth: Math.max(0, Number(projectile.lineWidth) || 0),
+    emitterIndex: Number.isFinite(Number(projectile.emitterIndex)) ? Number(projectile.emitterIndex) : null,
+    emitterCount: Math.max(0, Math.trunc(Number(projectile.emitterCount) || 0)),
+    attackSystemVersion: Number(projectile.attackSystemVersion) || null,
   };
   const current = map.get(enemy.id) ?? [];
   current.push(contribution);
@@ -64,8 +72,7 @@ function buildImpactContexts(engine, projectileCandidates, deltaSeconds) {
       addContribution(contributions, target, projectile, projectile.damage);
       enemies
         .filter((enemy) => enemy.id !== target.id && canAttack(projectile.sourceColumn, enemy, ignoreLaneRestriction))
-        .sort((a, b) => b.progress - a.progress)
-        .slice(0, 2)
+        .sort((a, b) => b.progress - a.progress).slice(0, 2)
         .forEach((enemy) => addContribution(contributions, enemy, projectile, Math.max(1, Math.trunc(projectile.damage * 0.70))));
     } else if (projectile.weaponType === WeaponType.EXPLOSIVE) {
       addContribution(contributions, target, projectile, projectile.damage);
@@ -100,24 +107,40 @@ GameEngine.prototype.pushVfxEvent = function phase0PushVfxEvent(enemy, type, dam
   const event = this.state.vfxEvents[beforeLength];
   if (!event) return;
 
-  if (!this.__vfxImpactContexts) {
-    this.__vfxImpactContexts = buildImpactContexts(
-      this,
-      this.__vfxProjectileCandidates ?? [],
-      this.__vfxDeltaSeconds ?? 0,
-    );
+  let context = null;
+  if (this.__weaponVfxContext) {
+    context = {
+      primary: this.__weaponVfxContext,
+      contributorCount: Math.max(1, Math.trunc(Number(this.__weaponVfxContext.contributorCount) || 1)),
+    };
+  } else {
+    if (!this.__vfxImpactContexts) {
+      this.__vfxImpactContexts = buildImpactContexts(
+        this,
+        this.__vfxProjectileCandidates ?? [],
+        this.__vfxDeltaSeconds ?? 0,
+      );
+    }
+    context = this.__vfxImpactContexts.get(enemy.id) ?? null;
   }
-  const context = this.__vfxImpactContexts.get(enemy.id) ?? null;
+
+  const primary = context?.primary ?? null;
   const strengthTier = vfxStrengthTier(type, damage, enemy.maxHp);
   Object.assign(event, {
     contractVersion: VFX_EVENT_CONTRACT_VERSION,
     targetId: enemy.id,
     targetType: enemy.enemyType ?? null,
     targetMaxHp: Math.max(0, Number(enemy.maxHp) || 0),
-    sourceColumn: context?.primary?.sourceColumn ?? null,
-    weaponType: context?.primary?.weaponType ?? null,
-    projectileId: context?.primary?.projectileId ?? null,
+    sourceColumn: primary?.sourceColumn ?? null,
+    weaponType: primary?.weaponType ?? null,
+    projectileId: primary?.projectileId ?? null,
     contributorCount: context?.contributorCount ?? 0,
+    projectileKind: primary?.projectileKind ?? null,
+    effectRadius: Math.max(0, Number(primary?.effectRadius) || 0),
+    lineWidth: Math.max(0, Number(primary?.lineWidth) || 0),
+    emitterIndex: Number.isFinite(Number(primary?.emitterIndex)) ? Number(primary.emitterIndex) : null,
+    emitterCount: Math.max(0, Math.trunc(Number(primary?.emitterCount) || 0)),
+    attackSystemVersion: Number(primary?.attackSystemVersion) || null,
     strengthTier,
     particleBudget: desiredParticleBudget(strengthTier, this.state.vfxEvents.length),
   });

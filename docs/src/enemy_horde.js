@@ -46,6 +46,7 @@ const originalReset = GameEngine.prototype.reset;
 const originalRestore = GameEngine.prototype.restore;
 const originalSerialize = GameEngine.prototype.serialize;
 const originalTick = GameEngine.prototype.tick;
+const originalEnemyX = GameEngine.prototype.enemyX;
 
 GameEngine.prototype.reset = function resetWithHorde() {
   const result = originalReset.call(this);
@@ -88,6 +89,14 @@ GameEngine.prototype.createNormalEnemy = function createHordeEnemy(id, wave) {
     hp: maxHp,
     maxHp,
   };
+};
+
+GameEngine.prototype.enemyX = function hordeEnemyX(enemy) {
+  if (enemy?.enemyType !== "BOSS") {
+    const x = Number(enemy?.x);
+    if (Number.isFinite(x)) return Math.max(0, Math.min(1, x));
+  }
+  return originalEnemyX.call(this, enemy);
 };
 
 GameEngine.prototype.tick = function tickWithHorde(deltaSeconds) {

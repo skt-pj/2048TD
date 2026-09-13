@@ -27,6 +27,8 @@ const COPY = {
     maxTile: "MAX TILE",
     noRecords: "Finish a game to save your result here.",
     legacyBest: "Your previous best is preserved. Run details will be saved from your next game.",
+    previousBest: "PREVIOUS BEST",
+    detailsUnavailable: "Details were not saved for this older result.",
     personalRank: "PERSONAL RANK",
     saved: "Saved to My Best 10",
     newBest: "NEW PERSONAL BEST",
@@ -41,6 +43,8 @@ const COPY = {
     maxTile: "最大タイル",
     noRecords: "ゲーム終了後の成績がここに保存されます。",
     legacyBest: "以前のベストスコアは保持されています。詳細成績は次回プレイから保存されます。",
+    previousBest: "以前のベストスコア",
+    detailsUnavailable: "この成績のWAVE・最大タイル・日時は保存されていません。",
     personalRank: "自己成績順位",
     saved: "自己ベスト10に保存しました",
     newBest: "自己ベスト更新",
@@ -63,21 +67,24 @@ function integer(value, fallback = 0) {
 
 function normalizeRecord(record, index = 0) {
   if (!record || typeof record !== "object") return null;
+  const legacy = record.legacy === true;
   const score = Math.max(0, integer(record.score));
-  const wave = Math.max(1, integer(record.wave, 1));
-  const maxTile = Math.max(2, integer(record.maxTile, 2));
-  const playedAt = Math.max(0, integer(record.playedAt));
-  const runNumber = Math.max(1, integer(record.runNumber, index + 1));
-  return { runNumber, score, wave, maxTile, playedAt };
+  const wave = legacy ? 0 : Math.max(1, integer(record.wave, 1));
+  const maxTile = legacy ? 0 : Math.max(2, integer(record.maxTile, 2));
+  const playedAt = legacy ? 0 : Math.max(0, integer(record.playedAt));
+  const runNumber = legacy ? 0 : Math.max(1, integer(record.runNumber, index + 1));
+  return legacy
+    ? { runNumber, score, wave, maxTile, playedAt, legacy: true }
+    : { runNumber, score, wave, maxTile, playedAt };
 }
 
 function sortRecords(records) {
   return records.sort((a, b) =>
     b.score - a.score ||
-    b.wave - a.wave ||
-    b.maxTile - a.maxTile ||
-    b.playedAt - a.playedAt ||
-    a.runNumber - b.runNumber,
+    integer(b.wave) - integer(a.wave) ||
+    integer(b.maxTile) - integer(a.maxTile) ||
+    integer(b.playedAt) - integer(a.playedAt) ||
+    integer(a.runNumber) - integer(b.runNumber),
   );
 }
 
@@ -96,11 +103,26 @@ export function restorePersonalRanking(saved, fallbackBestScore = 0) {
   const records = Array.isArray(saved?.records)
     ? saved.records.map(normalizeRecord).filter(Boolean)
     : [];
+  const restoredLegacyBest = Math.max(0, integer(fallbackBestScore), integer(saved?.legacyBestScore));
+  let addedLegacyRecord = false;
+
+  if (restoredLegacyBest > 0 && !records.some((record) => record.score === restoredLegacyBest)) {
+    records.push(normalizeRecord({
+      legacy: true,
+      score: restoredLegacyBest,
+      wave: 0,
+      maxTile: 0,
+      playedAt: 0,
+      runNumber: 0,
+    }));
+    addedLegacyRecord = true;
+  }
+
   sortRecords(records);
-  const highestRun = records.reduce((max, record) => Math.max(max, record.runNumber), 0);
+  const highestRun = records.reduce((max, record) => Math.max(max, record.legacy ? 0 : record.runNumber), 0);
   state = {
-    totalGames: Math.max(0, integer(saved?.totalGames), highestRun),
-    legacyBestScore: Math.max(0, integer(fallbackBestScore), integer(saved?.legacyBestScore)),
+    totalGames: Math.max(0, integer(saved?.totalGames), highestRun) + (addedLegacyRecord ? 1 : 0),
+    legacyBestScore: restoredLegacyBest,
     records: records.slice(0, MAX_RECORDS),
   };
   renderRanking();
@@ -129,7 +151,7 @@ export function recordPersonalResult({ score, wave, maxTile, playedAt = Date.now
   sortRecords(state.records);
   state.records = state.records.slice(0, MAX_RECORDS);
   state.legacyBestScore = Math.max(state.legacyBestScore, record.score);
-  const rankIndex = state.records.findIndex((entry) => entry.runNumber === runNumber);
+  const rankIndex = state.records.findIndex((entry) => !entry.legacy && entry.runNumber === runNumber);
   const result = {
     rank: rankIndex >= 0 ? rankIndex + 1 : null,
     isBest: record.score > previousBest,
@@ -202,6 +224,7 @@ function renderRanking() {
   const t = copy();
   const best = bestScore();
   const bestRecord = state.records.find((record) => record.score === best) ?? state.records[0] ?? null;
+  const bestHasDetails = Boolean(bestRecord && !bestRecord.legacy);
   const bestScoreEl = $("personal-best-score");
   const gamesEl = $("personal-games");
   const countEl = $("personal-game-count");
@@ -213,8 +236,8 @@ function renderRanking() {
   bestScoreEl.textContent = formatScore(best);
   countEl.textContent = formatScore(state.totalGames);
   gamesEl.textContent = `${t.games} ${formatScore(state.totalGames)}`;
-  waveEl.textContent = bestRecord ? String(bestRecord.wave) : "-";
-  tileEl.textContent = bestRecord ? formatScore(bestRecord.maxTile) : "-";
+  waveEl.textContent = bestHasDetails ? String(bestRecord.wave) : "-";
+  tileEl.textContent = bestHasDetails ? formatScore(bestRecord.maxTile) : "-";
   list.replaceChildren();
 
   if (!state.records.length) {
@@ -239,10 +262,12 @@ function renderRanking() {
     identity.className = "ranking-entry-identity";
     const title = document.createElement("strong");
     title.className = "ranking-entry-name";
-    title.textContent = `${t.wave} ${record.wave} · ${t.maxTile} ${formatScore(record.maxTile)}`;
+    title.textContent = record.legacy
+      ? t.previousBest
+      : `${t.wave} ${record.wave} · ${t.maxTile} ${formatScore(record.maxTile)}`;
     const meta = document.createElement("small");
     meta.className = "ranking-entry-meta";
-    meta.textContent = formatPlayedAt(record.playedAt);
+    meta.textContent = record.legacy ? t.detailsUnavailable : formatPlayedAt(record.playedAt);
     identity.append(title, meta);
 
     const score = document.createElement("strong");

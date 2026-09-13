@@ -220,7 +220,7 @@ export function drawPhase2Impact(ctx, event, point, sourcePoint, ageMs) {
         : baseAngle + (t - 0.5) * spread;
       const start = 3 + 5 * progress;
       const length = spec.linePx * (0.42 + 0.20 * (i % 2)) * killBoost;
-      line(ctx, point.x + Math.cos(angle) * start, point.y + Math.sin(angle) * start, point.x + Math.cos(angle) * (start + length), point.y + Math.sin(angle) * (start + length), spec.mode === "MACHINE_GUN" ? 0.75 : 1.15, rgba(profile, spec.alpha * life));
+      line(ctx, point.x + Math.cos(angle) * start, point.y + Math.sin(angle) * start, point.x + Math.cos(angle) * (start + length), point.y + Math.sin(angle) * (start + length), spec.mode === "DIRECTIONAL" ? 0.75 : 1.15, rgba(profile, spec.alpha * life));
     }
   }
 

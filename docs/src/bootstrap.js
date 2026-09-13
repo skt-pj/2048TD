@@ -13,7 +13,7 @@ async function start() {
   if (!inYouTube) {
     await import("./ranking_transport.js?v=ranking-save-2");
   }
-  await import("./main.js?v=board-style-3");
+  await import("./main.js?v=fever-turret-aim-2");
 }
 
 start().catch((error) => {

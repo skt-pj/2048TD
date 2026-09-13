@@ -1,8 +1,28 @@
-/* Keep the 2048 area and battle area at an exact 1:1 split.
-   Handedness only changes which side each area occupies; it must not change size. */
+/* Layout contract:
+   - Portrait: battle and 2048 sections split remaining play space 1:1.
+   - Landscape: battle and 2048 sections split remaining play space 1:1.
+   - Weapon strip stays compact and never becomes a flexible third play area.
+   - Handedness changes side only, never size. */
 
 .playfield-shell {
-  grid-template-rows: minmax(0, 1fr) 58px minmax(0, 1fr);
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 54px minmax(0, 1fr);
+}
+
+.battle-panel {
+  grid-row: 1;
+  min-height: 0;
+}
+
+.weapon-strip {
+  grid-row: 2;
+  min-height: 0;
+}
+
+.board-section {
+  grid-row: 3;
+  min-height: 0;
 }
 
 .hand-preview {
@@ -11,23 +31,38 @@
 
 @media (max-height: 650px) and (orientation: portrait) {
   .playfield-shell {
-    grid-template-rows: minmax(0, 1fr) 51px minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) 46px minmax(0, 1fr);
   }
 }
 
 @media (orientation: landscape) {
   .playfield-shell {
+    width: 100vw;
+    max-width: none;
+    height: 100%;
+    margin: 0;
     grid-template-columns: minmax(0, 1fr) 72px minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr);
   }
 
-  .board-section,
-  .battle-panel {
+  .board-section {
+    grid-column: 1;
+    grid-row: 1;
     min-width: 0;
   }
 
-  /* Fit the square 2048 board inside its half without letting it stretch
-     the 1:1 split. */
+  .weapon-strip {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+  }
+
+  .battle-panel {
+    grid-column: 3;
+    grid-row: 1;
+    min-width: 0;
+  }
+
   .board {
     width: auto;
     height: 100%;

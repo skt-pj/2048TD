@@ -17,6 +17,7 @@ node --experimental-default-type=module "$ROOT_DIR/ci/test-vfx-phase4.mjs"
 node --experimental-default-type=module "$ROOT_DIR/ci/test-vfx-phase4-runtime.mjs"
 node --experimental-default-type=module "$ROOT_DIR/ci/test-vfx-phase5-performance.mjs"
 node --experimental-default-type=module "$ROOT_DIR/ci/test-personal-ranking.mjs"
+node --experimental-default-type=module "$ROOT_DIR/ci/test-layout-browser.mjs"
 
 rm -rf "$OUT_DIR"
 mkdir -p "$OUT_DIR" "$(dirname "$ZIP_PATH")" "$ROOT_DIR/build"

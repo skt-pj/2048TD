@@ -18,9 +18,10 @@ function normalizeVolume(value, fallback) {
 }
 
 function normalizeBoardStyle(value) {
+  if (value === BoardStyle.CLASSIC) return BoardStyle.CLASSIC;
   if (value === BoardStyle.MODERN) return BoardStyle.MODERN;
   if (value === BoardStyle.SF) return BoardStyle.SF;
-  return BoardStyle.CLASSIC;
+  return BoardStyle.SF;
 }
 
 export function normalizePreferences(raw) {

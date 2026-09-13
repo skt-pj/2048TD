@@ -31,6 +31,8 @@ const requiredCore = [
   "fever-hud.css",
   "src/orientation.js",
   "src/renderer.js",
+  "src/weapon_attack_profiles.js",
+  "src/weapon_attack_system.js",
   "src/vfx_contract.js",
   "src/vfx_phase0.js",
   "src/vfx_phase1.js",
@@ -59,6 +61,10 @@ for (const relative of checked) {
 }
 
 const playablesBootstrap = fs.readFileSync(path.join(artifactRoot, "src/bootstrap.js"), "utf8");
+assert.ok(
+  playablesBootstrap.includes("./weapon_attack_system.js"),
+  "Playables bootstrap must load weapon attack system",
+);
 for (let phase = 0; phase <= 4; phase += 1) {
   assert.ok(
     playablesBootstrap.includes(`./vfx_phase${phase}.js`),

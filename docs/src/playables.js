@@ -1,4 +1,9 @@
 import { setPlatformAudioEnabled, setPlatformPaused } from "./platform_state.js";
+import {
+  restorePersonalRanking,
+  snapshotPersonalRanking,
+  subscribePersonalRanking,
+} from "./personal_ranking.js?v=personal-ranking-1";
 
 const LOCAL_SAVE_KEY = "2048td-playables-preview-save";
 
@@ -9,10 +14,15 @@ export class PlayablesBridge {
     this.paused = false;
     this.pendingSave = null;
     this.savePromise = null;
+    this.lastSaveData = null;
     this.savedBestScore = 0;
     this.scoreTarget = 0;
     this.lastSentScore = 0;
     this.scorePromise = null;
+    this.unsubscribePersonalRanking = subscribePersonalRanking(() => {
+      if (!this.loaded || !this.lastSaveData) return;
+      void this.save(this.lastSaveData);
+    });
   }
 
   firstFrameReady() {
@@ -41,15 +51,21 @@ export class PlayablesBridge {
       try { raw = globalThis.localStorage?.getItem(LOCAL_SAVE_KEY) ?? ""; } catch { raw = ""; }
     }
     this.loaded = true;
-    if (!raw) return null;
+    if (!raw) {
+      restorePersonalRanking(null, 0);
+      return null;
+    }
     try {
       const parsed = JSON.parse(raw);
+      restorePersonalRanking(parsed?.personalRanking, parsed?.bestScore);
+      this.lastSaveData = parsed && typeof parsed === "object" ? { ...parsed } : null;
       if (this.inYouTube) {
         this.savedBestScore = Math.max(0, Math.trunc(Number(parsed?.bestScore) || 0));
         this.scoreTarget = Math.max(this.scoreTarget, this.savedBestScore);
       }
       return parsed;
     } catch {
+      restorePersonalRanking(null, 0);
       return null;
     }
   }
@@ -82,11 +98,16 @@ export class PlayablesBridge {
 
   async save(data) {
     if (!this.loaded) return false;
-    const raw = JSON.stringify(data);
+    this.lastSaveData = data && typeof data === "object" ? { ...data } : {};
+    const payload = {
+      ...this.lastSaveData,
+      personalRanking: snapshotPersonalRanking(),
+    };
+    const raw = JSON.stringify(payload);
     if (this.inYouTube) {
       this.pendingSave = {
         raw,
-        bestScore: Math.max(0, Math.trunc(Number(data?.bestScore) || 0)),
+        bestScore: Math.max(0, Math.trunc(Number(payload?.bestScore) || 0)),
       };
       return this.flushSaves();
     }

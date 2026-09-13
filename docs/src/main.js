@@ -4,7 +4,7 @@ import { strings } from "./i18n.js?v=board-style-1";
 import { renderBattle, renderBoard, renderComboFever, renderWeaponStrip } from "./renderer.js";
 import { isLandscapeViewport, screenDirectionToLogical } from "./orientation.js";
 import { feverActive } from "./combo_fever.js";
-import { BoardStyle, LandscapeHand, normalizePreferences } from "./preferences.js?v=board-style-1";
+import { BoardStyle, LandscapeHand, normalizePreferences } from "./preferences.js?v=board-style-3";
 import { setSfxPreferences } from "./audio.js?v=youtube-platform-1";
 import { setBgmPreferences } from "./bgm.js?v=youtube-platform-1";
 

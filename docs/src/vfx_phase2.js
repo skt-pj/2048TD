@@ -2,7 +2,11 @@ import { GameEngine } from "./game_engine.js";
 import { isLandscapeViewport, logicalPointToScreen } from "./orientation.js";
 import { phase1ReactionProfile, phase1RuntimeEvents, phase1VisualAgeMs } from "./vfx_phase1.js?v=vfx-phase1-2";
 import { drawPhase2Impact, drawPhase2ProjectileTrail, phase2WeaponProfile } from "./vfx_phase2_profiles.js?v=vfx-phase2-2";
-import { weaponAttackRuntimeFx } from "./weapon_attack_system.js?v=weapon-attacks-1";
+import {
+  weaponAttackRuntimeFx,
+  weaponAttackRuntimeImpacts,
+  weaponAttackRuntimeProjectiles,
+} from "./weapon_attack_system.js?v=weapon-attacks-1";
 
 let runtimeProjectiles = [];
 
@@ -104,9 +108,18 @@ function resizeOverlay(overlay) {
   return { ctx, width: rect.width, height: rect.height };
 }
 
+function combinedProjectiles() {
+  const live = weaponAttackRuntimeProjectiles();
+  if (!live.length) return runtimeProjectiles;
+  const byId = new Map();
+  for (const projectile of runtimeProjectiles) byId.set(`legacy:${projectile.id}`, projectile);
+  for (const projectile of live) byId.set(`attack:${projectile.id}`, projectile);
+  return [...byId.values()];
+}
+
 function drawProjectileTrails(ctx, width, height) {
   const fever = document.getElementById("app")?.classList.contains("fever-active") ?? false;
-  for (const projectile of runtimeProjectiles) {
+  for (const projectile of combinedProjectiles()) {
     if (!phase2WeaponProfile(projectile.weaponType)) continue;
     const source = sourceLogicalPoint(projectile);
     const currentPoint = screenPoint(projectile.x, projectile.y, width, height);
@@ -170,17 +183,26 @@ function drawMuzzleEvents(ctx, width, height) {
   }
 }
 
+function drawImpactEvent(ctx, event, width, height, ageMs) {
+  if (!phase2WeaponProfile(event.weaponType)) return;
+  const point = screenPoint(event.x, event.y, width, height);
+  const sourceColumn = Number(event.sourceColumn);
+  const sourceX = Number.isFinite(sourceColumn) ? (Math.max(0, Math.min(3, sourceColumn)) + 0.5) / 4 : event.x;
+  const sourcePoint = screenPoint(sourceX, 0.955, width, height);
+  drawPhase2Impact(ctx, event, point, sourcePoint, ageMs);
+}
+
 function drawWeaponImpacts(ctx, width, height, nowMs) {
   for (const event of phase1RuntimeEvents()) {
-    if ((event.type !== "HIT" && event.type !== "KILL") || !phase2WeaponProfile(event.weaponType)) continue;
+    if (event.type !== "HIT" && event.type !== "KILL") continue;
     const profile = phase1ReactionProfile(event.type);
     const ageMs = phase1VisualAgeMs(event, nowMs);
     if (ageMs > Math.max(profile.lifeMs, 500)) continue;
-    const point = screenPoint(event.x, event.y, width, height);
-    const sourceColumn = Number(event.sourceColumn);
-    const sourceX = Number.isFinite(sourceColumn) ? (Math.max(0, Math.min(3, sourceColumn)) + 0.5) / 4 : event.x;
-    const sourcePoint = screenPoint(sourceX, 0.955, width, height);
-    drawPhase2Impact(ctx, event, point, sourcePoint, ageMs);
+    drawImpactEvent(ctx, event, width, height, ageMs);
+  }
+  for (const event of weaponAttackRuntimeImpacts()) {
+    if (event.type !== "HIT" && event.type !== "KILL") continue;
+    drawImpactEvent(ctx, event, width, height, event.ageMs);
   }
 }
 

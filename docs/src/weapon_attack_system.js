@@ -1,4 +1,4 @@
-import { GameEngine } from "./game_engine.js";
+import { GameEngine } from "./game_engine.js?v=fever-turret-aim-2";
 import {
   WeaponType,
   canAttack,
@@ -23,11 +23,14 @@ import {
 const ATTACK_SYSTEM_VERSION = 1;
 const MUZZLE_LIFE_SECONDS = 0.11;
 const BEAM_LIFE_SECONDS = 0.14;
+const IMPACT_LIFE_SECONDS = 0.52;
 const pendingShots = new WeakMap();
 let runtimeElapsedSeconds = 0;
 let runtimeFxId = 1;
 let runtimeBeams = [];
 let runtimeMuzzles = [];
+let runtimeProjectiles = [];
+let runtimeImpacts = [];
 
 function clampDelta(deltaSeconds) {
   return Math.max(0, Math.min(0.05, Number(deltaSeconds) || 0));
@@ -85,16 +88,7 @@ export function selectWeaponTarget(engine, column, type, ignoreLaneRestriction =
     return candidates.find((enemy) => enemy.id === preferredTarget.id) ?? null;
   }
 
-  if (profile.targetMode === "CLUSTER") {
-    return candidates.slice().sort((a, b) => {
-      const scoreDiff = densityScore(engine.state.enemies, enemyPoint(b), profile.effectRadius)
-        - densityScore(engine.state.enemies, enemyPoint(a), profile.effectRadius);
-      if (Math.abs(scoreDiff) > 1e-9) return scoreDiff;
-      return remainingTime(a) - remainingTime(b);
-    })[0];
-  }
-
-  if (profile.targetMode === "SCATTER") {
+  if (profile.targetMode === "CLUSTER" || profile.targetMode === "SCATTER") {
     return candidates.slice().sort((a, b) => {
       const scoreDiff = densityScore(engine.state.enemies, enemyPoint(b), profile.effectRadius)
         - densityScore(engine.state.enemies, enemyPoint(a), profile.effectRadius);
@@ -155,7 +149,7 @@ function queueFor(engine) {
   return queue;
 }
 
-function recordMuzzle(engine, projectile, launchAtSeconds) {
+function recordMuzzle(projectile, launchAtSeconds) {
   runtimeMuzzles.push({
     id: runtimeFxId++,
     sourceColumn: projectile.sourceColumn,
@@ -170,9 +164,32 @@ function recordMuzzle(engine, projectile, launchAtSeconds) {
   });
 }
 
+function recordImpact(enemy, damage, context, typeOverride = null) {
+  const point = enemyPoint(enemy);
+  const lethal = Number(enemy.hp) - Number(damage) <= 0;
+  runtimeImpacts.push({
+    id: runtimeFxId++,
+    type: typeOverride ?? (lethal ? (enemy.enemyType === "BOSS" ? "BOSS_KILL" : "KILL") : "HIT"),
+    x: point.x,
+    y: point.y,
+    damage: Math.max(0, Math.trunc(Number(damage) || 0)),
+    targetMaxHp: Math.max(1, Number(enemy.maxHp) || 1),
+    sourceColumn: context?.sourceColumn ?? null,
+    weaponType: context?.weaponType ?? null,
+    projectileId: context?.projectileId ?? null,
+    contributorCount: Math.max(1, Math.trunc(Number(context?.contributorCount) || 1)),
+    projectileKind: context?.projectileKind ?? null,
+    effectRadius: Math.max(0, Number(context?.effectRadius) || 0),
+    lineWidth: Math.max(0, Number(context?.lineWidth) || 0),
+    particleBudget: 14,
+    createdAtSeconds: runtimeElapsedSeconds,
+    lifeSeconds: IMPACT_LIFE_SECONDS,
+  });
+}
+
 function scheduleProjectile(engine, projectile, launchAtSeconds) {
   queueFor(engine).push({ projectile, launchAtSeconds });
-  recordMuzzle(engine, projectile, launchAtSeconds);
+  recordMuzzle(projectile, launchAtSeconds);
 }
 
 function flushPendingShots(engine) {
@@ -211,6 +228,7 @@ function applyDamageBatch(engine, damageByEnemyId, context) {
       continue;
     }
     const nextHp = Number(enemy.hp) - damage;
+    recordImpact(enemy, damage, context);
     withVfxContext(engine, { ...context, targetId: enemy.id }, () => {
       engine.pushVfxEvent(
         enemy,
@@ -221,9 +239,7 @@ function applyDamageBatch(engine, damageByEnemyId, context) {
     if (nextHp <= 0) {
       engine.state.score += Math.trunc(Number(enemy.maxHp) || 0);
       scoreChanged = true;
-    } else {
-      survivors.push({ ...enemy, hp: nextHp });
-    }
+    } else survivors.push({ ...enemy, hp: nextHp });
   }
   engine.state.enemies = survivors;
   return scoreChanged;
@@ -236,7 +252,7 @@ function lineVictims(engine, source, target, width) {
     .sort((a, b) => a.hit.t - b.hit.t || a.enemy.id - b.enemy.id);
 }
 
-function fireLaser(engine, column, target, power, ignoresLaneRestriction, profile) {
+function fireLaser(engine, column, target, power, profile) {
   const source = turretPoint(engine, column);
   const targetPoint = enemyPoint(target);
   const damageSplit = splitCycleDamage(power, profile.emitterOffsets.length);
@@ -262,7 +278,7 @@ function fireLaser(engine, column, target, power, ignoresLaneRestriction, profil
       emitterIndex: index,
       emitterCount: profile.emitterOffsets.length,
     });
-    recordMuzzle(engine, {
+    recordMuzzle({
       sourceColumn: column,
       visualWeaponType: WeaponType.LASER,
       projectileKind: ProjectileKind.BEAM,
@@ -278,6 +294,7 @@ function fireLaser(engine, column, target, power, ignoresLaneRestriction, profil
     weaponType: WeaponType.LASER,
     projectileId: null,
     contributorCount: profile.emitterOffsets.length,
+    projectileKind: ProjectileKind.BEAM,
     effectRadius: 0,
     lineWidth: profile.lineWidth,
     attackSystemVersion: ATTACK_SYSTEM_VERSION,
@@ -312,14 +329,13 @@ function projectileFor(engine, column, target, damage, type, profile, emitterInd
   };
 }
 
-const originalFireProjectile = GameEngine.prototype.fireProjectile;
 GameEngine.prototype.fireProjectile = function weaponAttackFire(column, preferredTarget, power, type, ignoresLaneRestriction) {
   const profile = feverRangeProfile(type, ignoresLaneRestriction);
   const target = selectWeaponTarget(this, column, type, ignoresLaneRestriction, preferredTarget);
   if (!target) return;
 
   if (type === WeaponType.LASER) {
-    fireLaser(this, column, target, power, ignoresLaneRestriction, profile);
+    fireLaser(this, column, target, power, profile);
     return;
   }
 
@@ -329,16 +345,7 @@ GameEngine.prototype.fireProjectile = function weaponAttackFire(column, preferre
   const now = Number(this.state.elapsedSeconds) || 0;
   for (let index = 0; index < count; index += 1) {
     const shotTarget = targets[index] ?? target;
-    const projectile = projectileFor(
-      this,
-      column,
-      shotTarget,
-      damages[index],
-      type,
-      profile,
-      index,
-      ignoresLaneRestriction,
-    );
+    const projectile = projectileFor(this, column, shotTarget, damages[index], type, profile, index, ignoresLaneRestriction);
     scheduleProjectile(this, projectile, now + (profile.shotDelays[index] ?? 0));
   }
   this.state.cooldowns[column] = fireIntervalSeconds(type);
@@ -383,11 +390,12 @@ function applySecondaryImpact(engine, plan) {
     const radius = Math.max(0, Number(projectile.effectRadius) || weaponAttackProfile(type).effectRadius);
     for (const enemy of engine.state.enemies) {
       if (enemy.id === plan.target.id) continue;
-      const scale = circularDamageScale(logicalDistance(enemyPoint(enemy), plan.point), radius + enemyRadius(enemy));
+      const distance = logicalDistance(enemyPoint(enemy), plan.point);
+      const scale = circularDamageScale(distance, radius + enemyRadius(enemy));
       if (scale <= 0) continue;
       damageByEnemyId.set(enemy.id, Math.max(1, Math.trunc(projectile.damage * scale)));
     }
-  } else if (type === WeaponType.PIERCING) {
+  } else {
     const source = { x: Number(projectile.sourceX), y: Number(projectile.sourceY) };
     const width = Math.max(0.001, Number(projectile.lineWidth) || weaponAttackProfile(type).lineWidth);
     const victims = engine.state.enemies
@@ -406,6 +414,7 @@ function applySecondaryImpact(engine, plan) {
     weaponType: type,
     projectileId: projectile.id,
     contributorCount: 1,
+    projectileKind: projectile.projectileKind,
     effectRadius: Number(projectile.effectRadius) || 0,
     lineWidth: Number(projectile.lineWidth) || 0,
     attackSystemVersion: ATTACK_SYSTEM_VERSION,
@@ -413,29 +422,57 @@ function applySecondaryImpact(engine, plan) {
 }
 
 function pruneRuntimeFx(now) {
-  runtimeBeams = runtimeBeams.filter((event) => now - event.createdAtSeconds <= event.lifeSeconds);
-  runtimeMuzzles = runtimeMuzzles.filter((event) => now - event.createdAtSeconds <= event.lifeSeconds && event.createdAtSeconds <= now + 0.001);
+  runtimeBeams = runtimeBeams.filter((event) => now <= event.createdAtSeconds + event.lifeSeconds);
+  runtimeMuzzles = runtimeMuzzles.filter((event) => now <= event.createdAtSeconds + event.lifeSeconds);
+  runtimeImpacts = runtimeImpacts.filter((event) => now <= event.createdAtSeconds + event.lifeSeconds);
 }
 
 const originalTick = GameEngine.prototype.tick;
 GameEngine.prototype.tick = function weaponAttackTick(deltaSeconds) {
   const delta = clampDelta(deltaSeconds);
+  const scoreBefore = Number(this.state.score) || 0;
+  const beforePositions = new Map(this.state.projectiles.map((projectile) => [
+    projectile.id,
+    { x: Number(projectile.x) || 0, y: Number(projectile.y) || 0 },
+  ]));
   const beforeEnemies = projectedEnemies(this.state.enemies, delta);
   const candidates = this.state.projectiles.map((projectile) => ({ ...projectile }));
   const plans = candidates.map((projectile) => plannedImpact(projectile, beforeEnemies, delta)).filter(Boolean);
 
+  runtimeElapsedSeconds = Number(this.state.elapsedSeconds) || runtimeElapsedSeconds;
   const result = originalTick.call(this, deltaSeconds);
+  runtimeElapsedSeconds = Number(this.state.elapsedSeconds) || runtimeElapsedSeconds;
   const remainingIds = new Set(this.state.projectiles.map((projectile) => projectile.id));
-  let secondaryScoreChanged = false;
+
   for (const plan of plans) {
     if (remainingIds.has(plan.projectile.id)) continue;
-    secondaryScoreChanged = applySecondaryImpact(this, plan) || secondaryScoreChanged;
+    const context = {
+      sourceColumn: plan.projectile.sourceColumn,
+      weaponType: plan.projectile.visualWeaponType ?? plan.projectile.weaponType,
+      projectileId: plan.projectile.id,
+      contributorCount: 1,
+      projectileKind: plan.projectile.projectileKind,
+      effectRadius: Number(plan.projectile.effectRadius) || 0,
+      lineWidth: Number(plan.projectile.lineWidth) || 0,
+    };
+    recordImpact(plan.target, plan.projectile.damage, context);
+    applySecondaryImpact(this, plan);
   }
 
   flushPendingShots(this);
-  runtimeElapsedSeconds = Number(this.state.elapsedSeconds) || runtimeElapsedSeconds;
+  runtimeProjectiles = this.state.projectiles
+    .filter((projectile) => projectile.attackSystemVersion === ATTACK_SYSTEM_VERSION)
+    .map((projectile) => {
+      const previous = beforePositions.get(projectile.id) ?? { x: projectile.sourceX, y: projectile.sourceY };
+      return {
+        ...projectile,
+        weaponType: projectile.visualWeaponType ?? projectile.weaponType,
+        previousX: previous.x,
+        previousY: previous.y,
+      };
+    });
   pruneRuntimeFx(runtimeElapsedSeconds);
-  if (secondaryScoreChanged && result && typeof result === "object") result.scoreChanged = true;
+  if (result && typeof result === "object" && (Number(this.state.score) || 0) !== scoreBefore) result.scoreChanged = true;
   return result;
 };
 
@@ -444,6 +481,8 @@ GameEngine.prototype.reset = function weaponAttackReset() {
   pendingShots.delete(this);
   runtimeBeams = [];
   runtimeMuzzles = [];
+  runtimeProjectiles = [];
+  runtimeImpacts = [];
   runtimeElapsedSeconds = 0;
   return originalReset.call(this);
 };
@@ -453,6 +492,8 @@ GameEngine.prototype.restore = function weaponAttackRestore(saved) {
   pendingShots.delete(this);
   runtimeBeams = [];
   runtimeMuzzles = [];
+  runtimeProjectiles = [];
+  runtimeImpacts = [];
   const restored = originalRestore.call(this, saved);
   runtimeElapsedSeconds = Number(this.state?.elapsedSeconds) || 0;
   return restored;
@@ -470,6 +511,17 @@ export function weaponAttackRuntimeFx() {
   };
 }
 
+export function weaponAttackRuntimeProjectiles() {
+  return runtimeProjectiles.map((projectile) => ({ ...projectile }));
+}
+
+export function weaponAttackRuntimeImpacts() {
+  const now = runtimeElapsedSeconds;
+  return runtimeImpacts
+    .filter((event) => event.createdAtSeconds <= now + 0.001)
+    .map((event) => ({ ...event, ageMs: Math.max(0, (now - event.createdAtSeconds) * 1000) }));
+}
+
 export function pendingWeaponShotsForTest(engine) {
   return queueFor(engine).map((item) => ({ ...item, projectile: { ...item.projectile } }));
 }
@@ -478,6 +530,8 @@ export function resetWeaponAttackRuntimeForTest(engine = null) {
   if (engine) pendingShots.delete(engine);
   runtimeBeams = [];
   runtimeMuzzles = [];
+  runtimeProjectiles = [];
+  runtimeImpacts = [];
   runtimeElapsedSeconds = Number(engine?.state?.elapsedSeconds) || 0;
 }
 

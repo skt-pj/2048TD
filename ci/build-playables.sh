@@ -12,6 +12,8 @@ node --experimental-default-type=module "$ROOT_DIR/ci/test-vfx-phase2.mjs"
 node --experimental-default-type=module "$ROOT_DIR/ci/test-vfx-phase2-runtime.mjs"
 node --experimental-default-type=module "$ROOT_DIR/ci/test-vfx-phase3.mjs"
 node --experimental-default-type=module "$ROOT_DIR/ci/test-vfx-phase3-runtime.mjs"
+node --experimental-default-type=module "$ROOT_DIR/ci/test-vfx-phase4.mjs"
+node --experimental-default-type=module "$ROOT_DIR/ci/test-vfx-phase4-runtime.mjs"
 node --experimental-default-type=module "$ROOT_DIR/ci/test-personal-ranking.mjs"
 
 rm -rf "$OUT_DIR"
@@ -31,6 +33,7 @@ import "./audio.js?v=youtube-platform-1";
 import "./vfx_phase1.js?v=vfx-phase1-2";
 import "./vfx_phase2.js?v=vfx-phase2-1";
 import "./vfx_phase3.js?v=vfx-phase3-1";
+import "./vfx_phase4.js?v=vfx-phase4-1";
 import "./bgm.js?v=youtube-platform-1";
 import "./help.js?v=settings-help-1";
 import "./board_style_setup.js?v=board-style-3";

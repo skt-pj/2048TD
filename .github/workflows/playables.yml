@@ -11,6 +11,15 @@ on:
       - "ci/vfx-phase5-qa.*"
       - "ci/verify-playables-vfx-parity.mjs"
       - ".github/workflows/playables.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "ci/build-playables.sh"
+      - "ci/test-*.mjs"
+      - "ci/vfx-phase5-qa.*"
+      - "ci/verify-playables-vfx-parity.mjs"
+      - ".github/workflows/playables.yml"
 
 permissions:
   contents: read

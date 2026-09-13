@@ -1,0 +1,45 @@
+/* Keep the 2048 area and battle area at an exact 1:1 split.
+   Handedness only changes which side each area occupies; it must not change size. */
+
+.playfield-shell {
+  grid-template-rows: minmax(0, 1fr) 58px minmax(0, 1fr);
+}
+
+.hand-preview {
+  grid-template-columns: 1fr 7px 1fr;
+}
+
+@media (max-height: 650px) and (orientation: portrait) {
+  .playfield-shell {
+    grid-template-rows: minmax(0, 1fr) 51px minmax(0, 1fr);
+  }
+}
+
+@media (orientation: landscape) {
+  .playfield-shell {
+    grid-template-columns: minmax(0, 1fr) 72px minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .board-section,
+  .battle-panel {
+    min-width: 0;
+  }
+
+  /* Fit the square 2048 board inside its half without letting it stretch
+     the 1:1 split. */
+  .board {
+    width: auto;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    justify-self: center;
+    align-self: center;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 390px) {
+  .playfield-shell {
+    grid-template-columns: minmax(0, 1fr) 62px minmax(0, 1fr);
+  }
+}

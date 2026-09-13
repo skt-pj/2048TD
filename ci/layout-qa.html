@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <link rel="stylesheet" href="/docs/styles.css">
+  <link rel="stylesheet" href="/docs/fever-hud.css">
+  <link rel="stylesheet" href="/docs/ranking.css">
+  <link rel="stylesheet" href="/docs/layout-ratio.css">
+</head>
+<body>
+  <main id="app" class="app">
+    <header class="status-bar">
+      <div class="brand">2048TD</div>
+      <div class="hp-head"><div class="hp-head-row"><span>HP</span><strong>1931/1931</strong></div><div class="hp-track"></div></div>
+      <div class="status-cell"><span>WAVE</span><strong>1</strong></div>
+      <div class="status-cell"><span>SCORE</span><strong>0</strong></div>
+      <button class="icon-button ranking-button" type="button">R</button>
+      <button class="icon-button" type="button">S</button>
+    </header>
+    <div id="playfield-shell" class="playfield-shell">
+      <section id="battle-panel" class="battle-panel"></section>
+      <div id="fever-meter" class="fever-meter"><div class="fever-track"><div class="fever-fill"></div></div><strong>FEVER</strong></div>
+      <section id="weapon-strip" class="weapon-strip">
+        <div class="weapon-card"></div><div class="weapon-card"></div><div class="weapon-card"></div><div class="weapon-card"></div>
+      </section>
+      <section id="board-section" class="board-section"><div class="board-heading"><strong>2048</strong></div><div class="board"></div></section>
+    </div>
+  </main>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const app = document.getElementById('app');
+    if (params.get('hand') === 'right') app.classList.add('handed-right');
+    const close = (a, b, tolerance = 1.5) => Math.abs(a - b) <= tolerance;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const status = document.querySelector('.status-bar').getBoundingClientRect();
+      const playfield = document.querySelector('.playfield-shell').getBoundingClientRect();
+      const battle = document.getElementById('battle-panel').getBoundingClientRect();
+      const fever = document.getElementById('fever-meter').getBoundingClientRect();
+      const weapon = document.getElementById('weapon-strip').getBoundingClientRect();
+      const board = document.getElementById('board-section').getBoundingClientRect();
+      const portrait = innerHeight >= innerWidth;
+      const handRight = app.classList.contains('handed-right');
+      let pass = fever.top >= status.top - 1 && fever.bottom <= status.bottom + 1 && playfield.top >= status.bottom - 1;
+      if (portrait) {
+        pass = pass && close(battle.height, board.height) && close(battle.width, board.width) && weapon.height <= 60 && battle.bottom <= weapon.top + 1 && weapon.bottom <= board.top + 1;
+      } else {
+        pass = pass && close(battle.width, board.width) && close(battle.height, board.height) && weapon.width <= 80;
+        if (handRight) pass = pass && battle.left < weapon.left && weapon.left < board.left;
+        else pass = pass && board.left < weapon.left && weapon.left < battle.left;
+      }
+      document.documentElement.dataset.layoutQa = pass ? 'pass' : 'fail';
+      document.documentElement.dataset.orientation = portrait ? 'portrait' : 'landscape';
+      document.documentElement.dataset.battle = `${Math.round(battle.width)}x${Math.round(battle.height)}`;
+      document.documentElement.dataset.board = `${Math.round(board.width)}x${Math.round(board.height)}`;
+      document.documentElement.dataset.weapon = `${Math.round(weapon.width)}x${Math.round(weapon.height)}`;
+      document.documentElement.dataset.fever = `${Math.round(fever.top)}-${Math.round(fever.bottom)}`;
+      document.documentElement.dataset.header = `${Math.round(status.top)}-${Math.round(status.bottom)}`;
+    }));
+  </script>
+</body>
+</html>

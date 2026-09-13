@@ -7,7 +7,7 @@ import "./vfx_phase4.js?v=vfx-phase4-1";
 import "./bgm.js?v=youtube-platform-1";
 import "./help.js?v=settings-help-1";
 import "./board_style_setup.js?v=board-style-3";
-import "./enemy_horde.js?v=turret-aim-aura-1";
+import "./enemy_horde.js?v=fever-aura-lite-2";
 
 const inYouTube = typeof globalThis.ytgame !== "undefined" && Boolean(globalThis.ytgame.IN_PLAYABLES_ENV);
 
@@ -15,7 +15,7 @@ async function start() {
   if (!inYouTube) {
     await import("./ranking_transport.js?v=ranking-save-2");
   }
-  await import("./main.js?v=turret-aim-aura-1");
+  await import("./main.js?v=fever-aura-lite-2");
 }
 
 start().catch((error) => {

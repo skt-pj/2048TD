@@ -3,6 +3,7 @@ import "./audio.js?v=youtube-platform-1";
 import "./vfx_phase1.js?v=vfx-phase1-2";
 import "./vfx_phase2.js?v=vfx-phase2-1";
 import "./vfx_phase3.js?v=vfx-phase3-1";
+import "./vfx_phase4.js?v=vfx-phase4-1";
 import "./bgm.js?v=youtube-platform-1";
 import "./help.js?v=settings-help-1";
 import "./board_style_setup.js?v=board-style-3";

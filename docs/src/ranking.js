@@ -393,13 +393,14 @@ export class WebRankingController {
     const records = Array.isArray(personal.records) ? personal.records : [];
     const bestScore = Math.max(Number(personal.legacyBestScore) || 0, Number(records[0]?.score) || 0);
     const bestRecord = records.find((record) => Number(record.score) === bestScore) ?? records[0] ?? null;
+    const bestHasDetails = Boolean(bestRecord && !bestRecord.legacy);
 
     $("ranking-my-rank-label").textContent = this.text.personalBest ?? this.text.best;
     $("ranking-my-rank").textContent = formatScore(bestScore);
     $("ranking-my-best-label").textContent = this.text.games ?? "GAMES";
     $("ranking-my-best").textContent = formatScore(personal.totalGames ?? records.length);
-    $("ranking-my-wave").textContent = bestRecord ? String(bestRecord.wave) : "-";
-    $("ranking-my-tile").textContent = bestRecord ? formatScore(bestRecord.maxTile) : "-";
+    $("ranking-my-wave").textContent = bestHasDetails ? String(bestRecord.wave) : "-";
+    $("ranking-my-tile").textContent = bestHasDetails ? formatScore(bestRecord.maxTile) : "-";
     $("ranking-my-total").textContent = records.length
       ? `${formatScore(records.length)} ${this.text.recordsSaved ?? "records saved"}`
       : this.text.playToRank;
@@ -416,8 +417,14 @@ export class WebRankingController {
           if (rank <= 3) row.classList.add(`rank-${rank}`);
           const rankNode = element("strong", "ranking-entry-rank", `#${rank}`);
           const identity = element("div", "ranking-entry-identity");
-          identity.append(element("strong", "ranking-entry-name", `${this.text.wave} ${record.wave} · ${this.text.maxTile} ${formatScore(record.maxTile)}`));
-          identity.append(element("small", "ranking-entry-meta", formatDate(record.playedAt)));
+          const title = record.legacy
+            ? (this.text.previousBest ?? this.text.personalBest ?? this.text.best)
+            : `${this.text.wave} ${record.wave} · ${this.text.maxTile} ${formatScore(record.maxTile)}`;
+          const meta = record.legacy
+            ? (this.text.detailsUnavailable ?? "")
+            : formatDate(record.playedAt);
+          identity.append(element("strong", "ranking-entry-name", title));
+          identity.append(element("small", "ranking-entry-meta", meta));
           const score = element("strong", "ranking-entry-score", formatScore(record.score));
           row.append(rankNode, identity, score);
           list.append(row);

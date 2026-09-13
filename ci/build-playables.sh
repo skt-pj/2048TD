@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT_DIR="${1:-$ROOT_DIR/build/playables}"
 ZIP_PATH="${2:-$ROOT_DIR/build/2048TD-playables.zip}"
 
+node --experimental-default-type=module "$ROOT_DIR/ci/test-enemy-horde.mjs"
 node --experimental-default-type=module "$ROOT_DIR/ci/test-fever-turret-aim.mjs"
 node --experimental-default-type=module "$ROOT_DIR/ci/test-vfx-phase0.mjs"
 node --experimental-default-type=module "$ROOT_DIR/ci/test-vfx-phase1.mjs"
@@ -38,7 +39,8 @@ import "./vfx_phase4.js?v=vfx-phase4-1";
 import "./bgm.js?v=youtube-platform-1";
 import "./help.js?v=settings-help-1";
 import "./board_style_setup.js?v=board-style-3";
-import "./main.js?v=board-style-3";
+import "./enemy_horde.js?v=enemy-horde-1";
+import "./main.js?v=enemy-horde-1";
 PLAYABLES_BOOTSTRAP
 
 # The shared game module contains a standalone-browser ranking initializer.

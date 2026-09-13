@@ -8,6 +8,8 @@ on:
       - "docs/**"
       - "ci/build-playables.sh"
       - "ci/test-*.mjs"
+      - "ci/vfx-phase5-qa.*"
+      - "ci/verify-playables-vfx-parity.mjs"
       - ".github/workflows/playables.yml"
 
 permissions:
@@ -25,4 +27,12 @@ jobs:
         with:
           name: 2048TD-playables
           path: build/2048TD-playables.zip
+          if-no-files-found: error
+      - name: Upload P5 VFX QA captures
+        uses: actions/upload-artifact@v4
+        with:
+          name: vfx-phase5-qa
+          path: |
+            build/vfx-phase5-web.png
+            build/vfx-phase5-playables.png
           if-no-files-found: error

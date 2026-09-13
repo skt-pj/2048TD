@@ -6,7 +6,7 @@ import {
   normalEnemyHpBase,
   spawnBatchSize,
 } from "../docs/src/enemy_horde.js";
-import { GameEngine } from "../docs/src/game_engine.js?v=fever-turret-aim-2";
+import { GameEngine } from "../docs/src/game_engine.js?v=turret-aim-aura-1";
 import { canAttack } from "../docs/src/column_combat_rules.js";
 
 assert.equal(enemyCountMultiplier(1), 4);

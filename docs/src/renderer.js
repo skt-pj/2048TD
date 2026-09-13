@@ -146,7 +146,7 @@ export function renderBattle(canvas, state, landscape, landscapeHand = "left") {
     const type = weaponType(columnLevel(state.board, col));
     const spec = WEAPON_SPRITES[type] ?? WEAPON_SPRITES.NORMAL;
     const ready = 1 - Math.min(1, state.cooldowns[col] / Math.max(0.01, spec.cooldown));
-    const aimAngle = fever ? Number(state.turretAims?.[col]?.angle) || 0 : 0;
+    const aimAngle = Number(state.turretAims?.[col]?.angle) || 0;
     drawTurret(ctx, point.x, point.y, type, landscape, ready, fever, phase, aimAngle, landscapeHand);
   }
 
@@ -355,13 +355,62 @@ function drawWeaponFrame(ctx, type, readyRatio, phase) {
   return true;
 }
 
+function drawFeverTurretAura(ctx, phase) {
+  const pulse = .5 + .5 * Math.sin(phase * 7.5);
+  const centerY = -12;
+  const radius = 37 + pulse * 4;
+
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  const glow = ctx.createRadialGradient(0, centerY, 4, 0, centerY, radius);
+  glow.addColorStop(0, `rgba(255,255,255,${.34 + .12 * pulse})`);
+  glow.addColorStop(.28, `rgba(0,245,255,${.22 + .08 * pulse})`);
+  glow.addColorStop(.62, `rgba(255,53,211,${.16 + .06 * pulse})`);
+  glow.addColorStop(1, "rgba(255,53,211,0)");
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(0, centerY, radius, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.lineCap = "round";
+  ctx.shadowBlur = 8 + pulse * 5;
+  for (let i = 0; i < 9; i += 1) {
+    const wave = Math.sin(phase * 8 + i * 1.47);
+    const x = -24 + i * 6 + wave * 2.5;
+    const baseY = 6 - (i % 2) * 3;
+    const tipY = -31 - (i % 3) * 7 - Math.max(0, wave) * 7;
+    ctx.strokeStyle = i % 2 === 0
+      ? `rgba(0,245,255,${.46 + .26 * pulse})`
+      : `rgba(255,53,211,${.42 + .28 * pulse})`;
+    ctx.shadowColor = i % 2 === 0 ? COLORS.cyan : COLORS.pink;
+    ctx.lineWidth = 1.7 + (i % 3) * .45;
+    ctx.beginPath();
+    ctx.moveTo(x, baseY);
+    ctx.quadraticCurveTo(x + wave * 7, -12, x * .55, tipY);
+    ctx.stroke();
+  }
+
+  ctx.shadowColor = COLORS.white;
+  ctx.shadowBlur = 10;
+  ctx.strokeStyle = `rgba(255,255,255,${.42 + .28 * pulse})`;
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.arc(0, -7, 27 + pulse * 2, phase * 2.3, phase * 2.3 + Math.PI * 1.15);
+  ctx.stroke();
+  ctx.restore();
+}
+
 function drawTurret(ctx, x, y, type, landscape, readyRatio, fever, phase, aimAngle, landscapeHand) {
   const color = WEAPON_COLORS[type] ?? WEAPON_COLORS.NORMAL;
   ctx.save();
   ctx.translate(x, y);
   if (landscape) ctx.rotate(landscapeHand === "right" ? -Math.PI / 2 : Math.PI / 2);
 
+  if (fever) drawFeverTurretAura(ctx, phase);
+  const turretScale = fever ? 1.20 + .04 * Math.sin(phase * 7) : 1;
+
   ctx.save();
+  ctx.scale(turretScale, turretScale);
   ctx.rotate(aimAngle);
   if (!drawWeaponFrame(ctx, type, readyRatio, phase)) {
     ctx.fillStyle = color;
@@ -370,12 +419,16 @@ function drawTurret(ctx, x, y, type, landscape, readyRatio, fever, phase, aimAng
   }
   ctx.restore();
 
+  ctx.save();
+  const ringScale = fever ? 1.12 : 1;
+  ctx.scale(ringScale, ringScale);
   ctx.strokeStyle = color; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.arc(0, -5, 18, -Math.PI/2, -Math.PI/2 + Math.PI*2*Math.max(0,Math.min(1,readyRatio))); ctx.stroke();
   if (fever) {
     ctx.strokeStyle = `rgba(255,53,211,${.6 + .25*Math.sin(phase*6)})`; ctx.lineWidth = 2.5;
     ctx.beginPath(); ctx.arc(0, -5, 24, phase*2, phase*2 + Math.PI*.9); ctx.stroke();
   }
+  ctx.restore();
   ctx.restore();
 }
 

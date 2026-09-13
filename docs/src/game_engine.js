@@ -12,8 +12,8 @@ const BOSS_SPEED_RATIO = 0.55;
 const BOSS_HP_RATIO = 12;
 const SAVE_SCHEMA = 2;
 const VFX_LIFETIME_SECONDS = 0.90;
-const FEVER_TURRET_AIM_SPEED = Math.PI * 1.5;
-const FEVER_TURRET_AIM_TOLERANCE = 0.02;
+const TURRET_AIM_SPEED = Math.PI * 1.5;
+const TURRET_AIM_TOLERANCE = 0.02;
 
 function newTurretAimState() {
   return { targetEnemyId: null, angle: 0, pendingFire: false };
@@ -207,24 +207,13 @@ export class GameEngine {
 
     this.state.cooldowns = this.state.cooldowns.map((value) => Math.max(0, value - delta));
     const feverActive = this.state.comboFever.feverRemainingSeconds > 0;
-    if (!feverActive) {
-      this.state.turretAims = Array.from({ length: GRID_SIZE }, newTurretAimState);
-    }
     for (let column = 0; column < GRID_SIZE; column += 1) {
       const power = columnPower(this.state.board, column);
       if (power <= 0) {
-        if (feverActive) this.resetFeverTurretAim(column, delta);
+        this.resetTurretAim(column, delta);
         continue;
       }
-      if (feverActive) {
-        this.updateFeverTurret(column, power, delta);
-        continue;
-      }
-      if (this.state.cooldowns[column] > 0) continue;
-      const target = selectTarget(column, this.state.enemies, false);
-      if (!target) continue;
-      const type = weaponType(columnLevel(this.state.board, column));
-      this.fireProjectile(column, target, power, type, false);
+      this.updateTurret(column, power, delta, feverActive);
     }
 
     const hits = [];
@@ -290,45 +279,49 @@ export class GameEngine {
     return { scoreChanged, waveChanged, gameOver: Boolean(this.state.gameOverReason) };
   }
 
-  updateFeverTurret(column, power, delta) {
+  updateTurret(column, power, delta, ignoreLaneRestriction) {
     const aim = this.state.turretAims[column] ?? newTurretAimState();
     let target = aim.targetEnemyId == null
       ? null
-      : this.state.enemies.find((enemy) => enemy.id === aim.targetEnemyId) ?? null;
+      : this.state.enemies.find(
+          (enemy) => enemy.id === aim.targetEnemyId && canAttack(column, enemy, ignoreLaneRestriction),
+        ) ?? null;
 
     if (this.state.cooldowns[column] <= 0 && !aim.pendingFire) {
-      target = selectTarget(column, this.state.enemies, true);
+      target = selectTarget(column, this.state.enemies, ignoreLaneRestriction);
       aim.targetEnemyId = target?.id ?? null;
       aim.pendingFire = Boolean(target);
     } else if (aim.pendingFire && !target) {
-      target = selectTarget(column, this.state.enemies, true);
+      target = selectTarget(column, this.state.enemies, ignoreLaneRestriction);
       aim.targetEnemyId = target?.id ?? null;
       aim.pendingFire = Boolean(target);
     }
 
     if (!target) {
-      aim.angle = moveAngleTowards(aim.angle, 0, FEVER_TURRET_AIM_SPEED * delta);
+      aim.targetEnemyId = null;
+      aim.pendingFire = false;
+      aim.angle = moveAngleTowards(aim.angle, 0, TURRET_AIM_SPEED * delta);
       this.state.turretAims[column] = aim;
       return;
     }
 
     const desiredAngle = this.turretAimAngle(column, target);
-    aim.angle = moveAngleTowards(aim.angle, desiredAngle, FEVER_TURRET_AIM_SPEED * delta);
+    aim.angle = moveAngleTowards(aim.angle, desiredAngle, TURRET_AIM_SPEED * delta);
     this.state.turretAims[column] = aim;
 
     if (this.state.cooldowns[column] > 0 || !aim.pendingFire) return;
-    if (Math.abs(normalizeAngle(desiredAngle - aim.angle)) > FEVER_TURRET_AIM_TOLERANCE) return;
+    if (Math.abs(normalizeAngle(desiredAngle - aim.angle)) > TURRET_AIM_TOLERANCE) return;
 
     const type = weaponType(columnLevel(this.state.board, column));
-    this.fireProjectile(column, target, power, type, true);
+    this.fireProjectile(column, target, power, type, ignoreLaneRestriction);
     aim.pendingFire = false;
   }
 
-  resetFeverTurretAim(column, delta) {
+  resetTurretAim(column, delta) {
     const aim = this.state.turretAims[column] ?? newTurretAimState();
     aim.targetEnemyId = null;
     aim.pendingFire = false;
-    aim.angle = moveAngleTowards(aim.angle, 0, FEVER_TURRET_AIM_SPEED * delta);
+    aim.angle = moveAngleTowards(aim.angle, 0, TURRET_AIM_SPEED * delta);
     this.state.turretAims[column] = aim;
   }
 
@@ -392,5 +385,6 @@ export const CURRENT_RULES = Object.freeze({
   BOSS_SPEED_RATIO,
   BOSS_HP_RATIO,
   FEVER_IGNORES_LANE_RESTRICTIONS: true,
-  FEVER_TURRET_AIM_SPEED,
+  TURRET_AIM_SPEED,
+  FEVER_TURRET_AIM_SPEED: TURRET_AIM_SPEED,
 });

@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
-import { GameEngine } from "../docs/src/game_engine.js";
+import "../docs/src/enemy_horde.js";
+import { GameEngine } from "../docs/src/game_engine.js?v=turret-aim-aura-1";
 
 function emptyBoard() {
   return Array(16).fill(0);
 }
 
-function enemy(id, lane, progress = 0.4) {
-  return {
+function enemy(id, lane, progress = 0.4, x = null, laneRadius = 0.05) {
+  const value = {
     id,
     enemyType: "NORMAL",
     lane,
@@ -15,6 +16,11 @@ function enemy(id, lane, progress = 0.4) {
     hp: 1000,
     maxHp: 1000,
   };
+  if (Number.isFinite(x)) {
+    value.x = x;
+    value.laneRadius = laneRadius;
+  }
+  return value;
 }
 
 {
@@ -72,18 +78,73 @@ function enemy(id, lane, progress = 0.4) {
   const board = emptyBoard();
   board[0] = 2;
   engine.state.board = board;
-  engine.state.enemies = [enemy(200, 0)];
+  engine.state.enemies = [enemy(200, 0, 0.4, 0.235)];
   engine.state.projectiles = [];
   engine.state.cooldowns = [0, 0, 0, 0];
   engine.state.comboFever.feverRemainingSeconds = 0;
 
-  engine.tick(0.01);
+  engine.tick(0.016);
 
+  assert.equal(engine.state.turretAims[0].targetEnemyId, 200, "normal turret should acquire its attackable horde target");
+  assert.notEqual(engine.state.turretAims[0].angle, 0, "normal turret should rotate toward an off-center enemy");
   assert.equal(
     engine.state.projectiles.some((projectile) => projectile.sourceColumn === 0),
-    true,
-    "normal-mode firing should remain immediate and unchanged",
+    false,
+    "normal turret must wait until it is aimed before firing",
+  );
+
+  let fired = false;
+  for (let step = 0; step < 10 && !fired; step += 1) {
+    engine.tick(0.016);
+    fired = engine.state.projectiles.some((projectile) => projectile.sourceColumn === 0);
+  }
+  assert.equal(fired, true, "normal turret should fire after finishing its rotation");
+  assert.equal(
+    engine.state.projectiles.find((projectile) => projectile.sourceColumn === 0)?.ignoresLaneRestriction,
+    false,
+    "normal-mode aiming must preserve normal lane restrictions",
   );
 }
 
-console.log("fever turret aiming tests passed");
+{
+  const engine = new GameEngine(() => 0.5);
+  const board = emptyBoard();
+  board[0] = 2;
+  engine.state.board = board;
+  engine.state.enemies = [enemy(300, 3)];
+  engine.state.projectiles = [];
+  engine.state.cooldowns = [0, 0, 0, 0];
+  engine.state.comboFever.feverRemainingSeconds = 0;
+
+  engine.tick(0.05);
+
+  assert.equal(engine.state.turretAims[0].targetEnemyId, null, "normal turret must not acquire a non-attackable lane");
+  assert.equal(engine.state.projectiles.length, 0, "normal turret must not fire across unrelated lanes");
+}
+
+{
+  const engine = new GameEngine(() => 0.5);
+  const board = emptyBoard();
+  board[0] = 2;
+  engine.state.board = board;
+  engine.state.enemies = [enemy(400, 3)];
+  engine.state.projectiles = [];
+  engine.state.cooldowns = [0, 0, 0, 0];
+  engine.state.comboFever.feverRemainingSeconds = 5;
+
+  engine.tick(0.05);
+  assert.equal(engine.state.turretAims[0].targetEnemyId, 400, "fever should allow a cross-lane aim target");
+
+  engine.state.comboFever.feverRemainingSeconds = 0;
+  engine.tick(0.05);
+
+  assert.equal(engine.state.turretAims[0].targetEnemyId, null, "ending fever must drop a cross-lane aim target");
+  assert.equal(engine.state.turretAims[0].pendingFire, false, "ending fever must clear a cross-lane pending shot");
+  assert.equal(
+    engine.state.projectiles.some((projectile) => projectile.sourceColumn === 0 && !projectile.ignoresLaneRestriction),
+    false,
+    "a fever target must not leak into a new normal-mode shot",
+  );
+}
+
+console.log("turret aiming tests passed");

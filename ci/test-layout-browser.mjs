@@ -8,6 +8,16 @@ import { fileURLToPath } from "node:url";
 const CI_DIR = path.dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = path.resolve(CI_DIR, "..");
 
+const productionIndex = fs.readFileSync(path.join(ROOT_DIR, "docs", "index.html"), "utf8");
+for (const stylesheet of ["styles.css", "fever-hud.css", "settings-audio.css", "ranking.css", "layout-ratio.css"]) {
+  const escaped = stylesheet.replaceAll(".", "\\.");
+  assert.match(
+    productionIndex,
+    new RegExp(`href=["']\\./${escaped}\\?v=[^"']+["']`),
+    `${stylesheet} must be cache-busted in docs/index.html so deployed mobile clients do not retain stale layout CSS`,
+  );
+}
+
 function findChrome() {
   const explicit = process.env.CHROME_BIN;
   if (explicit && fs.existsSync(explicit)) return explicit;
@@ -90,7 +100,7 @@ try {
   await runCase(390, 844, "left");
   await runCase(844, 390, "left");
   await runCase(844, 390, "right");
-  console.log("Layout browser QA passed: portrait 1:1, landscape 1:1, FEVER inside HUD, handedness preserved");
+  console.log("Layout browser QA passed: portrait 1:1, landscape 1:1, FEVER inside HUD, handedness preserved, production CSS cache-busted");
 } finally {
   await new Promise((resolve) => server.close(resolve));
 }

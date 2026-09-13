@@ -7,6 +7,8 @@ ZIP_PATH="${2:-$ROOT_DIR/build/2048TD-playables.zip}"
 
 node --experimental-default-type=module "$ROOT_DIR/ci/test-vfx-phase0.mjs"
 node --experimental-default-type=module "$ROOT_DIR/ci/test-vfx-phase1.mjs"
+node --experimental-default-type=module "$ROOT_DIR/ci/test-vfx-phase2.mjs"
+node --experimental-default-type=module "$ROOT_DIR/ci/test-vfx-phase2-runtime.mjs"
 
 rm -rf "$OUT_DIR"
 mkdir -p "$OUT_DIR" "$(dirname "$ZIP_PATH")"
@@ -22,7 +24,8 @@ rm -f \
 cat > "$OUT_DIR/src/bootstrap.js" <<'PLAYABLES_BOOTSTRAP'
 import "./vfx_phase0.js?v=vfx-phase0-1";
 import "./audio.js?v=youtube-platform-1";
-import "./vfx_phase1.js?v=vfx-phase1-1";
+import "./vfx_phase1.js?v=vfx-phase1-2";
+import "./vfx_phase2.js?v=vfx-phase2-1";
 import "./bgm.js?v=youtube-platform-1";
 import "./help.js?v=settings-help-1";
 import "./main.js?v=youtube-platform-3";

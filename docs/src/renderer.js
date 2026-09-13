@@ -139,7 +139,8 @@ export function renderBattle(canvas, state, landscape, landscapeHand = "left") {
     const type = weaponType(columnLevel(state.board, col));
     const spec = WEAPON_SPRITES[type] ?? WEAPON_SPRITES.NORMAL;
     const ready = 1 - Math.min(1, state.cooldowns[col] / Math.max(0.01, spec.cooldown));
-    drawTurret(ctx, point.x, point.y, type, landscape, ready, fever, phase, landscapeHand);
+    const aimAngle = fever ? Number(state.turretAims?.[col]?.angle) || 0 : 0;
+    drawTurret(ctx, point.x, point.y, type, landscape, ready, fever, phase, aimAngle, landscapeHand);
   }
 
   for (const enemy of state.enemies) {
@@ -347,17 +348,20 @@ function drawWeaponFrame(ctx, type, readyRatio, phase) {
   return true;
 }
 
-function drawTurret(ctx, x, y, type, landscape, readyRatio, fever, phase, landscapeHand) {
+function drawTurret(ctx, x, y, type, landscape, readyRatio, fever, phase, aimAngle, landscapeHand) {
   const color = WEAPON_COLORS[type] ?? WEAPON_COLORS.NORMAL;
   ctx.save();
   ctx.translate(x, y);
   if (landscape) ctx.rotate(landscapeHand === "right" ? -Math.PI / 2 : Math.PI / 2);
 
+  ctx.save();
+  ctx.rotate(aimAngle);
   if (!drawWeaponFrame(ctx, type, readyRatio, phase)) {
     ctx.fillStyle = color;
     ctx.fillRect(-11, -8, 22, 9);
     ctx.fillRect(-2.5, -18, 5, 12);
   }
+  ctx.restore();
 
   ctx.strokeStyle = color; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.arc(0, -5, 18, -Math.PI/2, -Math.PI/2 + Math.PI*2*Math.max(0,Math.min(1,readyRatio))); ctx.stroke();

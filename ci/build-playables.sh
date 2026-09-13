@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT_DIR="${1:-$ROOT_DIR/build/playables}"
 ZIP_PATH="${2:-$ROOT_DIR/build/2048TD-playables.zip}"
 
+node --experimental-default-type=module "$ROOT_DIR/ci/test-fever-turret-aim.mjs"
 node --experimental-default-type=module "$ROOT_DIR/ci/test-vfx-phase0.mjs"
 node --experimental-default-type=module "$ROOT_DIR/ci/test-vfx-phase1.mjs"
 node --experimental-default-type=module "$ROOT_DIR/ci/test-vfx-phase2.mjs"

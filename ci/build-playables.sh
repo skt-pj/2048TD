@@ -9,6 +9,7 @@ node --experimental-default-type=module "$ROOT_DIR/ci/test-vfx-phase0.mjs"
 node --experimental-default-type=module "$ROOT_DIR/ci/test-vfx-phase1.mjs"
 node --experimental-default-type=module "$ROOT_DIR/ci/test-vfx-phase2.mjs"
 node --experimental-default-type=module "$ROOT_DIR/ci/test-vfx-phase2-runtime.mjs"
+node --experimental-default-type=module "$ROOT_DIR/ci/test-personal-ranking.mjs"
 
 rm -rf "$OUT_DIR"
 mkdir -p "$OUT_DIR" "$(dirname "$ZIP_PATH")"

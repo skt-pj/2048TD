@@ -32,7 +32,8 @@ import "./vfx_phase2.js?v=vfx-phase2-1";
 import "./vfx_phase3.js?v=vfx-phase3-1";
 import "./bgm.js?v=youtube-platform-1";
 import "./help.js?v=settings-help-1";
-import "./main.js?v=youtube-platform-3";
+import "./board_style_setup.js?v=board-style-1";
+import "./main.js?v=board-style-1";
 PLAYABLES_BOOTSTRAP
 
 # The shared game module contains a standalone-browser ranking initializer.

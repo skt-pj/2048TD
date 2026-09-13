@@ -1,4 +1,4 @@
-import { GameEngine } from "./game_engine.js?v=turret-aim-aura-1";
+import { GameEngine } from "./game_engine.js?v=fever-aura-lite-2";
 import { GRID_SIZE } from "./game_rules.js";
 
 const BASE_ENEMIES_PER_WAVE = 7;

@@ -1,6 +1,6 @@
 const styleLink = document.createElement("link");
 styleLink.rel = "stylesheet";
-styleLink.href = new URL("../board-styles.css?v=board-style-2", import.meta.url).href;
+styleLink.href = new URL("../board-styles.css?v=board-style-3", import.meta.url).href;
 document.head.appendChild(styleLink);
 
 const firstAudioSection = document.querySelector(".settings-audio-section");
@@ -15,7 +15,7 @@ if (firstAudioSection && !document.getElementById("board-style-options")) {
       </div>
     </div>
     <div id="board-style-options" class="board-style-options" role="radiogroup" aria-labelledby="board-style-title">
-      <button id="board-style-classic" class="board-style-option" type="button" role="radio" aria-checked="true" data-board-style="classic">
+      <button id="board-style-classic" class="board-style-option" type="button" role="radio" aria-checked="false" data-board-style="classic">
         <span class="board-style-preview preview-classic" aria-hidden="true"><i>2</i><i>4</i><i>8</i><i>16</i></span>
         <strong id="board-style-classic-label">Classic</strong>
         <span class="selection-dot" aria-hidden="true"></span>
@@ -25,7 +25,7 @@ if (firstAudioSection && !document.getElementById("board-style-options")) {
         <strong id="board-style-modern-label">Modern</strong>
         <span class="selection-dot" aria-hidden="true"></span>
       </button>
-      <button id="board-style-sf" class="board-style-option" type="button" role="radio" aria-checked="false" data-board-style="sf">
+      <button id="board-style-sf" class="board-style-option" type="button" role="radio" aria-checked="true" data-board-style="sf">
         <span class="board-style-preview preview-sf" aria-hidden="true"><i>2</i><i>4</i><i>8</i><i>16</i></span>
         <strong id="board-style-sf-label">SF</strong>
         <span class="selection-dot" aria-hidden="true"></span>

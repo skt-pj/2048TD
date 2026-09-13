@@ -1,4 +1,4 @@
-const MAX_RECORDS = 50;
+const MAX_RECORDS = 10;
 const inYouTube = typeof globalThis.ytgame !== "undefined" && Boolean(globalThis.ytgame.IN_PLAYABLES_ENV);
 const listeners = new Set();
 
@@ -20,7 +20,7 @@ const scoreFormatter = new Intl.NumberFormat("en-US");
 const COPY = {
   en: {
     ranking: "RANKING",
-    myRecords: "MY RECORDS",
+    myRecords: "MY BEST 10",
     personalBest: "PERSONAL BEST",
     games: "GAMES",
     wave: "WAVE",
@@ -28,13 +28,13 @@ const COPY = {
     noRecords: "Finish a game to save your result here.",
     legacyBest: "Your previous best is preserved. Run details will be saved from your next game.",
     personalRank: "PERSONAL RANK",
-    saved: "Saved to My Records",
+    saved: "Saved to My Best 10",
     newBest: "NEW PERSONAL BEST",
     close: "Close ranking",
   },
   ja: {
     ranking: "ランキング",
-    myRecords: "マイレコード",
+    myRecords: "自己ベスト10",
     personalBest: "自己ベスト",
     games: "プレイ回数",
     wave: "WAVE",
@@ -42,7 +42,7 @@ const COPY = {
     noRecords: "ゲーム終了後の成績がここに保存されます。",
     legacyBest: "以前のベストスコアは保持されています。詳細成績は次回プレイから保存されます。",
     personalRank: "自己成績順位",
-    saved: "マイレコードに保存しました",
+    saved: "自己ベスト10に保存しました",
     newBest: "自己ベスト更新",
     close: "ランキングを閉じる",
   },
@@ -306,7 +306,9 @@ function captureGameOver() {
   const status = $("game-over-rank-status");
   if (label) label.textContent = t.personalRank;
   if (rank) rank.textContent = result.rank == null ? "—" : `#${result.rank}`;
-  if (status) status.textContent = result.isBest ? t.newBest : `${t.personalBest} ${formatScore(result.bestScore)}`;
+  if (status) status.textContent = result.rank == null
+    ? `${t.personalBest} ${formatScore(result.bestScore)}`
+    : result.isBest ? t.newBest : `${t.personalBest} ${formatScore(result.bestScore)}`;
   $("game-over-rank-card")?.classList.add("updated");
 }
 

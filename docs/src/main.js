@@ -1,10 +1,10 @@
 import { GameEngine } from "./game_engine.js";
 import { PlayablesBridge } from "./playables.js?v=youtube-platform-1";
-import { strings } from "./i18n.js?v=audio-controls-2";
+import { strings } from "./i18n.js?v=board-style-1";
 import { renderBattle, renderBoard, renderComboFever, renderWeaponStrip } from "./renderer.js";
 import { isLandscapeViewport, screenDirectionToLogical } from "./orientation.js";
 import { feverActive } from "./combo_fever.js";
-import { LandscapeHand, normalizePreferences } from "./preferences.js?v=audio-controls-2";
+import { BoardStyle, LandscapeHand, normalizePreferences } from "./preferences.js?v=board-style-1";
 import { setSfxPreferences } from "./audio.js?v=youtube-platform-1";
 import { setBgmPreferences } from "./bgm.js?v=youtube-platform-1";
 
@@ -63,6 +63,11 @@ function applyStrings() {
   $("hand-right-title").textContent = text.rightHand;
   $("hand-right-description").textContent = text.rightHandDescription;
   $("portrait-unchanged").textContent = text.portraitUnchanged;
+  $("board-style-title").textContent = text.boardStyle;
+  $("board-style-description").textContent = text.boardStyleDescription;
+  $("board-style-classic-label").textContent = text.boardStyleClassic;
+  $("board-style-modern-label").textContent = text.boardStyleModern;
+  $("board-style-sf-label").textContent = text.boardStyleSf;
   $("sound-effects-title").textContent = text.soundEffects;
   $("sound-effects-description").textContent = text.soundEffectsDescription;
   $("sound-effects-volume-label").textContent = text.soundEffectsVolume;
@@ -84,6 +89,13 @@ function updatePreferenceUi() {
   $("hand-left").setAttribute("aria-checked", String(!rightHand));
   $("hand-right").setAttribute("aria-checked", String(rightHand));
   $("landscape-flow-label").textContent = rightHand ? "ENEMY →" : "← ENEMY";
+
+  const boardStyle = preferences.boardStyle;
+  app.classList.toggle("board-style-modern", boardStyle === BoardStyle.MODERN);
+  app.classList.toggle("board-style-sf", boardStyle === BoardStyle.SF);
+  $("board-style-classic").setAttribute("aria-checked", String(boardStyle === BoardStyle.CLASSIC));
+  $("board-style-modern").setAttribute("aria-checked", String(boardStyle === BoardStyle.MODERN));
+  $("board-style-sf").setAttribute("aria-checked", String(boardStyle === BoardStyle.SF));
 
   const soundToggle = $("sound-effects-toggle");
   const volume = Math.round(preferences.sfxVolume * 100);
@@ -108,6 +120,12 @@ function setLandscapeHand(hand) {
   preferences = normalizePreferences({ ...preferences, landscapeHand: hand });
   updatePreferenceUi();
   render();
+  saveProgress();
+}
+
+function setBoardStyle(boardStyle) {
+  preferences = normalizePreferences({ ...preferences, boardStyle });
+  updatePreferenceUi();
   saveProgress();
 }
 
@@ -340,6 +358,9 @@ function installInput() {
   });
   $("hand-left").addEventListener("click", () => setLandscapeHand(LandscapeHand.LEFT));
   $("hand-right").addEventListener("click", () => setLandscapeHand(LandscapeHand.RIGHT));
+  $("board-style-classic").addEventListener("click", () => setBoardStyle(BoardStyle.CLASSIC));
+  $("board-style-modern").addEventListener("click", () => setBoardStyle(BoardStyle.MODERN));
+  $("board-style-sf").addEventListener("click", () => setBoardStyle(BoardStyle.SF));
   $("sound-effects-toggle").addEventListener("click", () => setSoundEffectsEnabled(!preferences.sfxEnabled));
   $("sound-effects-volume").addEventListener("input", (event) => setSoundEffectsVolume(event.currentTarget.value, false));
   $("sound-effects-volume").addEventListener("change", (event) => setSoundEffectsVolume(event.currentTarget.value, true));

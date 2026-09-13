@@ -11,10 +11,11 @@ const EN = {
   backgroundMusicOn: "ON", backgroundMusicOff: "OFF", backgroundMusicVolume: "Volume",
   done: "Done", restartGame: "Restart game",
   ranking: "RANKING", openRanking: "Open ranking", closeRanking: "Close ranking", refreshRanking: "Refresh ranking",
-  globalRank: "GLOBAL RANK", top100: "TOP 100", myRank: "MY RANK", you: "YOU", maxTile: "MAX TILE",
-  loadingRanking: "Loading ranking…", rankingUnavailable: "Ranking is unavailable", noRankingEntries: "No ranking entries yet",
+  globalRank: "GLOBAL RANK", top100: "TOP 100", myRank: "MY RANK", myRecords: "MY RECORDS", you: "YOU", maxTile: "MAX TILE",
+  personalBest: "PERSONAL BEST", personalRank: "PERSONAL RANK", games: "GAMES", recordsSaved: "records saved",
+  loadingRanking: "Loading ranking…", rankingUnavailable: "Global ranking is unavailable", noRankingEntries: "No ranking entries yet",
   updatingRank: "Updating…", rankUnavailable: "Rank unavailable", unranked: "UNRANKED", newPersonalBest: "NEW PERSONAL BEST",
-  outOf: "OUT OF", playToRank: "Finish a game to enter the ranking",
+  outOf: "OUT OF", playToRank: "Finish a game to save your result",
 };
 const JA = {
   restart: "リスタート", hp: "HP", wave: "WAVE", score: "SCORE", totalHp: "TOTAL HP",
@@ -29,9 +30,10 @@ const JA = {
   backgroundMusicOn: "オン", backgroundMusicOff: "オフ", backgroundMusicVolume: "音量",
   done: "完了", restartGame: "ゲームをリスタート",
   ranking: "ランキング", openRanking: "ランキングを開く", closeRanking: "ランキングを閉じる", refreshRanking: "ランキングを更新",
-  globalRank: "総合順位", top100: "TOP 100", myRank: "自分の順位", you: "あなた", maxTile: "最大タイル",
-  loadingRanking: "ランキングを読み込み中…", rankingUnavailable: "ランキングを取得できません", noRankingEntries: "ランキングデータがありません",
+  globalRank: "総合順位", top100: "TOP 100", myRank: "自分の順位", myRecords: "自分の成績", you: "あなた", maxTile: "最大タイル",
+  personalBest: "自己ベスト", personalRank: "自己成績順位", games: "プレイ回数", recordsSaved: "件の成績を保存",
+  loadingRanking: "ランキングを読み込み中…", rankingUnavailable: "グローバルランキングを取得できません", noRankingEntries: "ランキングデータがありません",
   updatingRank: "順位を更新中…", rankUnavailable: "順位を取得できません", unranked: "未登録", newPersonalBest: "自己ベスト更新",
-  outOf: "参加者", playToRank: "ゲームを完走するとランキングに登録されます",
+  outOf: "参加者", playToRank: "ゲーム終了後の成績がここに保存されます",
 };
 export function strings(locale) { return String(locale).toLowerCase().startsWith("ja") ? JA : EN; }

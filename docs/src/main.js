@@ -1,7 +1,7 @@
-import { GameEngine } from "./game_engine.js?v=turret-aim-aura-1";
+import { GameEngine } from "./game_engine.js?v=fever-aura-lite-2";
 import { PlayablesBridge } from "./playables.js?v=youtube-platform-1";
 import { strings } from "./i18n.js?v=board-style-1";
-import { renderBattle, renderBoard, renderComboFever, renderWeaponStrip } from "./renderer.js?v=turret-aim-aura-1";
+import { renderBattle, renderBoard, renderComboFever, renderWeaponStrip } from "./renderer.js?v=fever-aura-lite-2";
 import { isLandscapeViewport, screenDirectionToLogical } from "./orientation.js";
 import { feverActive } from "./combo_fever.js";
 import { BoardStyle, LandscapeHand, normalizePreferences } from "./preferences.js?v=board-style-3";

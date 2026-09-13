@@ -7,6 +7,7 @@ ZIP_PATH="${2:-$ROOT_DIR/build/2048TD-playables.zip}"
 
 node --experimental-default-type=module "$ROOT_DIR/ci/test-enemy-horde.mjs"
 node --experimental-default-type=module "$ROOT_DIR/ci/test-fever-turret-aim.mjs"
+node --experimental-default-type=module "$ROOT_DIR/ci/test-weapon-attacks.mjs"
 node --experimental-default-type=module "$ROOT_DIR/ci/test-vfx-phase0.mjs"
 node --experimental-default-type=module "$ROOT_DIR/ci/test-vfx-phase1.mjs"
 node --experimental-default-type=module "$ROOT_DIR/ci/test-vfx-phase2.mjs"
@@ -30,17 +31,18 @@ rm -f \
 
 # Use a Playables-only bootstrap with no standalone ranking code path.
 cat > "$OUT_DIR/src/bootstrap.js" <<'PLAYABLES_BOOTSTRAP'
-import "./vfx_phase0.js?v=vfx-phase0-1";
+import "./weapon_attack_system.js?v=weapon-attacks-1";
+import "./vfx_phase0.js?v=vfx-phase0-2";
 import "./audio.js?v=youtube-platform-1";
 import "./vfx_phase1.js?v=vfx-phase1-2";
-import "./vfx_phase2.js?v=vfx-phase2-1";
+import "./vfx_phase2.js?v=vfx-phase2-2";
 import "./vfx_phase3.js?v=vfx-phase3-1";
 import "./vfx_phase4.js?v=vfx-phase4-1";
 import "./bgm.js?v=youtube-platform-1";
 import "./help.js?v=settings-help-1";
 import "./board_style_setup.js?v=board-style-3";
 import "./enemy_horde.js?v=enemy-horde-1";
-import "./main.js?v=enemy-horde-1";
+import "./main.js?v=weapon-attacks-1";
 PLAYABLES_BOOTSTRAP
 
 # The shared game module contains a standalone-browser ranking initializer.

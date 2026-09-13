@@ -56,10 +56,11 @@ assert.equal(
   phase1VisualAgeMs(hitPresentation, hitPresentation.observedAtMs + PHASE1_TIMING.IMPACT_HOLD_MS - 1),
   0,
 );
-assert.equal(
-  phase1VisualAgeMs(hitPresentation, hitPresentation.observedAtMs + PHASE1_TIMING.IMPACT_HOLD_MS + 20),
-  20,
+const ageAfterHold = phase1VisualAgeMs(
+  hitPresentation,
+  hitPresentation.observedAtMs + PHASE1_TIMING.IMPACT_HOLD_MS + 20,
 );
+assert.ok(Math.abs(ageAfterHold - 20) < 1e-9, `expected ~20ms visual age, got ${ageAfterHold}`);
 assert.ok(phase1RecoilOffset([hitPresentation], 0, hitPresentation.observedAtMs + 20) > 0);
 const hitShake = phase1ShakeOffset([hitPresentation], hitPresentation.observedAtMs + 20);
 assert.ok(Math.hypot(hitShake.x, hitShake.y) > 0);

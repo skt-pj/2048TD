@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>2048TD VFX Phase 5 QA</title>
+  <style>
+    html, body { margin: 0; min-height: 100%; background: #020406; color: #f4fbff; font-family: system-ui, sans-serif; }
+    body { padding: 22px; box-sizing: border-box; }
+    h1 { margin: 0 0 4px; font-size: 24px; letter-spacing: .04em; }
+    p { margin: 0 0 16px; color: #a4b7c2; font-size: 13px; }
+    canvas { display: block; width: 1180px; height: 760px; max-width: 100%; border: 1px solid rgba(0,245,255,.35); background: #060a0f; }
+  </style>
+</head>
+<body data-vfx-qa="running">
+  <h1>2048TD VFX Acceptance Board</h1>
+  <p>HIT / weapon / Boss / merge / FEVER rendering smoke check</p>
+  <canvas id="qa-canvas" width="1180" height="760" aria-label="VFX QA board"></canvas>
+  <script type="module" src="./vfx-phase5-qa.js"></script>
+</body>
+</html>

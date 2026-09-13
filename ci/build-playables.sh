@@ -14,10 +14,11 @@ node --experimental-default-type=module "$ROOT_DIR/ci/test-vfx-phase3.mjs"
 node --experimental-default-type=module "$ROOT_DIR/ci/test-vfx-phase3-runtime.mjs"
 node --experimental-default-type=module "$ROOT_DIR/ci/test-vfx-phase4.mjs"
 node --experimental-default-type=module "$ROOT_DIR/ci/test-vfx-phase4-runtime.mjs"
+node --experimental-default-type=module "$ROOT_DIR/ci/test-vfx-phase5-performance.mjs"
 node --experimental-default-type=module "$ROOT_DIR/ci/test-personal-ranking.mjs"
 
 rm -rf "$OUT_DIR"
-mkdir -p "$OUT_DIR" "$(dirname "$ZIP_PATH")"
+mkdir -p "$OUT_DIR" "$(dirname "$ZIP_PATH")" "$ROOT_DIR/build"
 cp -R "$ROOT_DIR/docs/." "$OUT_DIR/"
 
 # YouTube Playables must not contain or reference the standalone browser
@@ -74,6 +75,19 @@ SDK_LINE="$(grep -n -m1 'https://www.youtube.com/game_api/v1' "$OUT_DIR/index.ht
 BOOTSTRAP_LINE="$(grep -n -m1 './src/bootstrap.js' "$OUT_DIR/index.html" | cut -d: -f1)"
 if [[ -z "$SDK_LINE" || -z "$BOOTSTRAP_LINE" || "$SDK_LINE" -ge "$BOOTSTRAP_LINE" ]]; then
   echo "Playables SDK must load before game code." >&2
+  exit 1
+fi
+
+# P5 acceptance: the VFX code/assets shipped to Playables must be byte-identical
+# to Web, and both surfaces must render the same deterministic acceptance board.
+node --experimental-default-type=module \
+  "$ROOT_DIR/ci/verify-playables-vfx-parity.mjs" "$ROOT_DIR/docs" "$OUT_DIR"
+node --experimental-default-type=module \
+  "$ROOT_DIR/ci/test-vfx-phase5-browser.mjs" "$ROOT_DIR/docs/src" "$ROOT_DIR/build/vfx-phase5-web.png"
+node --experimental-default-type=module \
+  "$ROOT_DIR/ci/test-vfx-phase5-browser.mjs" "$OUT_DIR/src" "$ROOT_DIR/build/vfx-phase5-playables.png"
+if ! cmp -s "$ROOT_DIR/build/vfx-phase5-web.png" "$ROOT_DIR/build/vfx-phase5-playables.png"; then
+  echo "Web and Playables VFX acceptance captures differ." >&2
   exit 1
 fi
 

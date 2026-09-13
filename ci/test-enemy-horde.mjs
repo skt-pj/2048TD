@@ -6,7 +6,7 @@ import {
   normalEnemyHpBase,
   spawnBatchSize,
 } from "../docs/src/enemy_horde.js";
-import { GameEngine } from "../docs/src/game_engine.js?v=turret-aim-aura-1";
+import { GameEngine } from "../docs/src/game_engine.js?v=fever-aura-lite-2";
 import { canAttack } from "../docs/src/column_combat_rules.js";
 
 assert.equal(enemyCountMultiplier(1), 4);
@@ -35,10 +35,9 @@ assert.equal(normalEnemyHpBase(25), 21);
 
 {
   const crossing = { enemyType: "NORMAL", lane: 0, x: 0.22, laneRadius: 0.05 };
-  assert.equal(canAttack(0, crossing), true, "source lane must attack its own enemy");
-  assert.equal(canAttack(1, crossing), false, "normal mode must not attack an adjacent lane even when the sprite crosses the boundary");
-  assert.equal(canAttack(2, crossing), false, "non-matching lanes must remain blocked");
-  assert.equal(canAttack(1, crossing, true), true, "fever lane restriction bypass must still allow the target");
+  assert.equal(canAttack(0, crossing), true, "source lane must attack a crossing enemy");
+  assert.equal(canAttack(1, crossing), true, "adjacent lane must attack an enemy whose body crosses the boundary");
+  assert.equal(canAttack(2, crossing), false, "non-adjacent lane must remain blocked");
 }
 
 {

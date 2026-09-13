@@ -47,105 +47,141 @@
 .preview-classic i:nth-child(3) { color: #fff; background: #d49a5f; }
 .preview-classic i:nth-child(4) { color: #fff; background: #cf5e51; }
 
-.preview-modern { border-radius: 12px; background: #dfe5ed; box-shadow: inset 0 1px rgba(255,255,255,.9); }
-.preview-modern i { border-radius: 8px; color: #172033; background: #fff; box-shadow: 0 1px 3px rgba(15,23,42,.12); }
-.preview-modern i:nth-child(2) { background: #e4efff; }
-.preview-modern i:nth-child(3) { color: #14355b; background: #b8dcff; }
-.preview-modern i:nth-child(4) { color: #fff; background: #7c74ff; }
+.preview-modern {
+  border: 1px solid #2b3642;
+  border-radius: 10px;
+  background: #171f29;
+  box-shadow: inset 0 1px rgba(255,255,255,.035);
+}
+.preview-modern i {
+  border-radius: 7px;
+  color: #18202a;
+  background: #e8edf2;
+  box-shadow: 0 1px 2px rgba(0,0,0,.2);
+}
+.preview-modern i:nth-child(2) { background: #d7e2eb; }
+.preview-modern i:nth-child(3) { color: #10232a; background: #b7d5dc; }
+.preview-modern i:nth-child(4) { color: #fff; background: #5d9eaf; }
 
 .preview-sf {
-  border: 1px solid rgba(0,245,255,.8);
+  border: 1px solid rgba(79,224,235,.58);
   border-radius: 2px;
-  background: repeating-linear-gradient(0deg, #02070d 0 7px, #05131d 8px);
-  box-shadow: inset 0 0 10px rgba(0,245,255,.13), 0 0 7px rgba(0,245,255,.12);
+  background: #050b10;
+  box-shadow: inset 0 0 8px rgba(42,201,211,.05);
+  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
 }
-.preview-sf i { border: 1px solid rgba(0,245,255,.48); color: #7df9ff; background: rgba(0,245,255,.06); text-shadow: 0 0 4px rgba(0,245,255,.75); }
-.preview-sf i:nth-child(2) { border-color: rgba(99,255,140,.55); color: #9cffb4; }
-.preview-sf i:nth-child(3) { border-color: rgba(255,53,211,.55); color: #ff78df; }
-.preview-sf i:nth-child(4) { border-color: rgba(255,176,32,.7); color: #ffd56c; }
+.preview-sf i {
+  border: 1px solid rgba(68,184,195,.42);
+  color: #bceff1;
+  background: #0b1a20;
+}
+.preview-sf i:nth-child(2) { border-color: rgba(89,191,158,.46); color: #c4efda; background: #0c1c19; }
+.preview-sf i:nth-child(3) { border-color: rgba(212,166,78,.5); color: #f4dda9; background: #211a0d; }
+.preview-sf i:nth-child(4) { border-color: rgba(192,91,151,.48); color: #f0c1df; background: #21101b; }
 
-/* Modern: clean, soft and high-contrast. */
+/* Modern: contemporary dark-neutral surfaces, rounded tiles and restrained depth. */
 .app.board-style-modern .board-section {
-  background: linear-gradient(180deg, #f5f7fa, #e9eef5);
-  border-color: rgba(20,38,62,.10);
+  background: linear-gradient(180deg, #0b1016, #090e13);
 }
-.app.board-style-modern .board-heading strong { color: #182438; letter-spacing: -.03em; }
-.app.board-style-modern .board-heading span { color: #687386; }
+.app.board-style-modern .board-heading strong {
+  color: #f2f5f8;
+  letter-spacing: -.025em;
+}
+.app.board-style-modern .board-heading span { color: #8f9ba8; }
 .app.board-style-modern .board {
   padding: 7px;
   gap: 7px;
-  border: 0;
-  border-radius: 22px;
-  background: #dfe5ed;
-  box-shadow: 0 12px 28px rgba(15,23,42,.16), inset 0 1px rgba(255,255,255,.9);
+  border: 1px solid #27323e;
+  border-radius: 18px;
+  background: #171f29;
+  box-shadow: 0 10px 24px rgba(0,0,0,.24), inset 0 1px rgba(255,255,255,.035);
 }
 .app.board-style-modern .tile {
-  border: 0;
-  border-radius: 17px;
-  color: #172033;
-  background: #cfd7e2;
+  border: 1px solid rgba(255,255,255,.025);
+  border-radius: 13px;
+  color: #f5f7f9;
+  background: #202a35;
   font-weight: 850;
-  letter-spacing: -.04em;
-  box-shadow: 0 2px 8px rgba(15,23,42,.08), inset 0 1px rgba(255,255,255,.58);
+  letter-spacing: -.035em;
+  text-shadow: none;
+  box-shadow: 0 2px 5px rgba(0,0,0,.16), inset 0 1px rgba(255,255,255,.055);
 }
-.app.board-style-modern .tile[data-value="0"] { color: transparent; background: #cfd7e2; box-shadow: inset 0 1px rgba(255,255,255,.48); }
-.app.board-style-modern .tile[data-value="2"] { color: #172033; background: #ffffff; }
-.app.board-style-modern .tile[data-value="4"] { color: #172033; background: #e7f1ff; }
-.app.board-style-modern .tile[data-value="8"] { color: #14355b; background: #bddfff; }
-.app.board-style-modern .tile[data-value="16"] { color: #10305b; background: #91c9ff; }
-.app.board-style-modern .tile[data-value="32"] { color: #fff; background: #729cff; }
-.app.board-style-modern .tile[data-value="64"] { color: #fff; background: #7c74ff; }
-.app.board-style-modern .tile.high { color: #fff; background: linear-gradient(145deg, #7861e8, #b45ee8); box-shadow: 0 6px 16px rgba(114,80,220,.28), inset 0 1px rgba(255,255,255,.28); }
+.app.board-style-modern .tile[data-value="0"] { color: transparent; background: #202a35; box-shadow: inset 0 1px rgba(255,255,255,.025); }
+.app.board-style-modern .tile[data-value="2"] { color: #18202a; background: #e8edf2; }
+.app.board-style-modern .tile[data-value="4"] { color: #17212b; background: #d7e2eb; }
+.app.board-style-modern .tile[data-value="8"] { color: #10232a; background: #b7d5dc; }
+.app.board-style-modern .tile[data-value="16"] { color: #0c2025; background: #88c4cc; }
+.app.board-style-modern .tile[data-value="32"] { color: #fff; background: #5d9eaf; }
+.app.board-style-modern .tile[data-value="64"] { color: #fff; background: #4f789f; }
+.app.board-style-modern .tile[data-value="128"] { color: #fff; background: #5c67aa; }
+.app.board-style-modern .tile[data-value="256"] { color: #fff; background: #705ca9; }
+.app.board-style-modern .tile[data-value="512"] { color: #fff; background: #8f579e; }
+.app.board-style-modern .tile[data-value="1024"] { color: #fff; background: #ad5f78; font-size: clamp(15px, 4.8vmin, 27px); }
+.app.board-style-modern .tile[data-value="2048"] { color: #fffaf2; background: #b87945; font-size: clamp(15px, 4.8vmin, 27px); box-shadow: 0 3px 8px rgba(0,0,0,.2), inset 0 0 0 1px rgba(255,236,197,.16); }
+.app.board-style-modern .tile.high { color: #fff; background: #7a5e8f; }
+.app.board-style-modern .tile[data-value="128"],
+.app.board-style-modern .tile[data-value="256"],
+.app.board-style-modern .tile[data-value="512"],
+.app.board-style-modern .tile[data-value="1024"],
+.app.board-style-modern .tile[data-value="2048"] { box-shadow: 0 3px 8px rgba(0,0,0,.2), inset 0 1px rgba(255,255,255,.08); }
 
-/* SF: tactical neon HUD treatment limited to the puzzle area. */
+/* SF: dark tactical/holographic treatment with angular framing and restrained edge light. */
 .app.board-style-sf .board-section {
   position: relative;
   background:
-    linear-gradient(rgba(0,245,255,.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0,245,255,.025) 1px, transparent 1px),
-    radial-gradient(circle at 50% 30%, rgba(0,245,255,.07), transparent 58%),
-    #02070d;
-  background-size: 18px 18px, 18px 18px, auto, auto;
-  border-color: rgba(0,245,255,.45);
+    linear-gradient(rgba(62,177,187,.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(62,177,187,.022) 1px, transparent 1px),
+    #03080d;
+  background-size: 20px 20px, 20px 20px, auto;
 }
 .app.board-style-sf .board-heading strong {
-  color: #7df9ff;
+  color: #9be7eb;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  letter-spacing: .12em;
-  text-shadow: 0 0 9px rgba(0,245,255,.62);
+  letter-spacing: .11em;
+  text-shadow: 0 0 5px rgba(57,203,213,.22);
 }
 .app.board-style-sf .board-heading span {
-  color: rgba(164,231,239,.72);
+  color: #78989f;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 .app.board-style-sf .board {
   padding: 6px;
   gap: 5px;
-  border: 1px solid rgba(0,245,255,.82);
+  border: 1px solid rgba(68,197,207,.58);
   border-radius: 2px;
-  background: rgba(2,9,15,.96);
-  box-shadow: inset 0 0 30px rgba(0,245,255,.08), 0 0 18px rgba(0,245,255,.13);
-  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  background: #050b10;
+  box-shadow: inset 0 0 20px rgba(38,174,184,.045), 0 0 8px rgba(38,174,184,.06);
+  clip-path: polygon(11px 0, 100% 0, 100% calc(100% - 11px), calc(100% - 11px) 100%, 0 100%, 0 11px);
 }
 .app.board-style-sf .tile {
-  border: 1px solid rgba(0,245,255,.38);
+  border: 1px solid rgba(68,184,195,.3);
   border-radius: 1px;
-  color: #d9fdff;
-  background: rgba(0,245,255,.055);
+  color: #d9f5f6;
+  background: #0b171d;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-weight: 900;
-  letter-spacing: -.04em;
-  text-shadow: 0 0 7px rgba(0,245,255,.44);
-  box-shadow: inset 0 0 12px rgba(0,245,255,.04);
+  letter-spacing: -.045em;
+  text-shadow: 0 0 4px rgba(85,222,231,.18);
+  box-shadow: inset 0 0 9px rgba(51,185,195,.025);
 }
-.app.board-style-sf .tile[data-value="0"] { color: transparent; background: rgba(3,15,23,.86); border-color: rgba(43,92,108,.38); }
-.app.board-style-sf .tile[data-value="2"] { color: #7df9ff; background: rgba(0,245,255,.08); border-color: rgba(0,245,255,.52); }
-.app.board-style-sf .tile[data-value="4"] { color: #9cffb4; background: rgba(99,255,140,.08); border-color: rgba(99,255,140,.52); text-shadow: 0 0 7px rgba(99,255,140,.46); }
-.app.board-style-sf .tile[data-value="8"] { color: #ffd56c; background: rgba(255,176,32,.08); border-color: rgba(255,176,32,.56); text-shadow: 0 0 7px rgba(255,176,32,.48); }
-.app.board-style-sf .tile[data-value="16"] { color: #ff9a68; background: rgba(255,122,24,.09); border-color: rgba(255,122,24,.58); text-shadow: 0 0 7px rgba(255,122,24,.5); }
-.app.board-style-sf .tile[data-value="32"] { color: #ff78df; background: rgba(255,53,211,.09); border-color: rgba(255,53,211,.6); text-shadow: 0 0 8px rgba(255,53,211,.5); }
-.app.board-style-sf .tile[data-value="64"] { color: #c5a5ff; background: rgba(170,98,255,.10); border-color: rgba(170,98,255,.62); text-shadow: 0 0 8px rgba(170,98,255,.52); }
-.app.board-style-sf .tile.high { color: #fff0a3; background: rgba(255,216,77,.12); border-color: rgba(255,216,77,.78); text-shadow: 0 0 9px rgba(255,216,77,.65); box-shadow: inset 0 0 14px rgba(255,216,77,.08), 0 0 9px rgba(255,216,77,.12); }
+.app.board-style-sf .tile[data-value="0"] { color: transparent; background: #081218; border-color: rgba(55,100,109,.32); box-shadow: none; }
+.app.board-style-sf .tile[data-value="2"] { color: #bceff1; background: #0b1a20; border-color: rgba(68,184,195,.44); }
+.app.board-style-sf .tile[data-value="4"] { color: #c4efda; background: #0c1c19; border-color: rgba(89,191,158,.46); }
+.app.board-style-sf .tile[data-value="8"] { color: #f4dda9; background: #211a0d; border-color: rgba(212,166,78,.5); }
+.app.board-style-sf .tile[data-value="16"] { color: #f3c1a6; background: #24150e; border-color: rgba(205,118,74,.5); }
+.app.board-style-sf .tile[data-value="32"] { color: #f0c1df; background: #21101b; border-color: rgba(192,91,151,.48); }
+.app.board-style-sf .tile[data-value="64"] { color: #d8caf2; background: #171222; border-color: rgba(135,104,192,.5); }
+.app.board-style-sf .tile[data-value="128"] { color: #b9d9ff; background: #0d1724; border-color: rgba(86,143,208,.55); }
+.app.board-style-sf .tile[data-value="256"] { color: #d8c5ff; background: #181126; border-color: rgba(139,94,205,.58); }
+.app.board-style-sf .tile[data-value="512"] { color: #f0bee1; background: #25101d; border-color: rgba(205,83,151,.6); }
+.app.board-style-sf .tile[data-value="1024"] { color: #ffd6a2; background: #27170c; border-color: rgba(225,147,58,.62); font-size: clamp(15px, 4.8vmin, 27px); }
+.app.board-style-sf .tile[data-value="2048"] { color: #fff7d9; background: #29240f; border-color: rgba(240,211,91,.72); font-size: clamp(15px, 4.8vmin, 27px); text-shadow: 0 0 5px rgba(240,211,91,.25); box-shadow: inset 0 0 10px rgba(240,211,91,.045), 0 0 6px rgba(240,211,91,.08); }
+.app.board-style-sf .tile.high { color: #e6d7ff; background: #181222; border-color: rgba(148,112,202,.5); }
+.app.board-style-sf .tile[data-value="128"],
+.app.board-style-sf .tile[data-value="256"],
+.app.board-style-sf .tile[data-value="512"],
+.app.board-style-sf .tile[data-value="1024"],
+.app.board-style-sf .tile[data-value="2048"] { box-shadow: inset 0 0 10px rgba(255,255,255,.025), 0 0 5px rgba(100,190,205,.045); }
 
 @media (max-width: 420px) and (orientation: portrait) {
   .board-style-option { padding: 8px 6px; }

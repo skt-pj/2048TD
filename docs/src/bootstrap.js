@@ -1,7 +1,8 @@
-import "./vfx_phase0.js?v=vfx-phase0-1";
+import "./weapon_attack_system.js?v=weapon-attacks-1";
+import "./vfx_phase0.js?v=vfx-phase0-2";
 import "./audio.js?v=youtube-platform-1";
 import "./vfx_phase1.js?v=vfx-phase1-2";
-import "./vfx_phase2.js?v=vfx-phase2-1";
+import "./vfx_phase2.js?v=vfx-phase2-2";
 import "./vfx_phase3.js?v=vfx-phase3-1";
 import "./vfx_phase4.js?v=vfx-phase4-1";
 import "./bgm.js?v=youtube-platform-1";
@@ -15,7 +16,7 @@ async function start() {
   if (!inYouTube) {
     await import("./ranking_transport.js?v=ranking-save-2");
   }
-  await import("./main.js?v=enemy-horde-1");
+  await import("./main.js?v=weapon-attacks-1");
 }
 
 start().catch((error) => {

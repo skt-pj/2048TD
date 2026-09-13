@@ -57,9 +57,21 @@ export function projectileSpeed(type) {
   }[type];
 }
 
+function normalEnemyX(enemy) {
+  const x = Number(enemy?.x);
+  if (Number.isFinite(x)) return Math.max(0, Math.min(1, x));
+  return (Math.max(0, Math.min(GRID_SIZE - 1, Number(enemy?.lane) || 0)) + 0.5) / GRID_SIZE;
+}
+
 export function canAttack(column, enemy, ignoreLaneRestriction = false) {
   if (ignoreLaneRestriction) return true;
-  return enemy.enemyType === "BOSS" ? (column === 1 || column === 2) : enemy.lane === column;
+  if (enemy.enemyType === "BOSS") return column === 1 || column === 2;
+
+  const x = normalEnemyX(enemy);
+  const radius = Math.max(0, Number(enemy?.laneRadius) || 0);
+  const laneMin = column / GRID_SIZE;
+  const laneMax = (column + 1) / GRID_SIZE;
+  return x + radius >= laneMin && x - radius <= laneMax;
 }
 
 export function remainingTime(enemy) {

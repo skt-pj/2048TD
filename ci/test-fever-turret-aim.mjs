@@ -31,7 +31,7 @@ function enemy(id, lane, progress = 0.4, x = null, laneRadius = 0.05) {
   board[0] = 2;
   board[3] = 2;
   engine.state.board = board;
-  engine.state.enemies = [enemy(100, 3)];
+  engine.state.enemies = [enemy(100, 3, 0.75)];
   engine.state.projectiles = [];
   engine.state.cooldowns = [0, 0, 0, 0];
   engine.state.comboFever.feverRemainingSeconds = 5;

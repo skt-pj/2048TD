@@ -5,7 +5,6 @@ import { drawPhase2Impact, drawPhase2ProjectileTrail, phase2WeaponProfile } from
 import {
   weaponAttackRuntimeFx,
   weaponAttackRuntimeImpacts,
-  weaponAttackRuntimeProjectiles,
 } from "./weapon_attack_system.js?v=weapon-attacks-1";
 
 let runtimeProjectiles = [];
@@ -27,6 +26,13 @@ function sourceLogicalPoint(projectile) {
   if (Number.isFinite(sourceX) && Number.isFinite(sourceY)) return { x: sourceX, y: sourceY };
   const column = Math.max(0, Math.min(3, Math.trunc(Number(projectile?.sourceColumn) || 0)));
   return { x: (column + 0.5) / 4, y: 0.955 };
+}
+
+function enemyLogicalX(enemy) {
+  const x = Number(enemy?.x);
+  if (Number.isFinite(x)) return Math.max(0, Math.min(1, x));
+  if (enemy?.enemyType === "BOSS") return 0.5;
+  return (Math.max(0, Math.min(3, Number(enemy?.lane) || 0)) + 0.5) / 4;
 }
 
 function visualProjectile(projectile) {
@@ -52,10 +58,13 @@ GameEngine.prototype.tick = function phase2Tick(deltaSeconds) {
   runtimeProjectiles = (this.state?.projectiles ?? []).map((projectile) => {
     const source = sourceLogicalPoint(projectile);
     const previous = before.get(projectile.id) ?? source;
+    const target = this.state.enemies.find((enemy) => enemy.id === projectile.targetEnemyId) ?? null;
     return visualProjectile({
       ...projectile,
       previousX: previous.x,
       previousY: previous.y,
+      targetX: target ? enemyLogicalX(target) : null,
+      targetY: target ? Number(target.progress) || 0 : null,
     });
   });
   return result;
@@ -108,23 +117,62 @@ function resizeOverlay(overlay) {
   return { ctx, width: rect.width, height: rect.height };
 }
 
-function combinedProjectiles() {
-  const live = weaponAttackRuntimeProjectiles();
-  if (!live.length) return runtimeProjectiles;
-  const byId = new Map();
-  for (const projectile of runtimeProjectiles) byId.set(`legacy:${projectile.id}`, projectile);
-  for (const projectile of live) byId.set(`attack:${projectile.id}`, projectile);
-  return [...byId.values()];
+function drawCircleBoundary(ctx, point, radius, alpha, dash = []) {
+  if (!Number.isFinite(radius) || radius <= 0) return;
+  ctx.save();
+  ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
+  ctx.lineWidth = 1.1;
+  ctx.setLineDash(dash);
+  ctx.beginPath();
+  ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawProjectileAttackGeometry(ctx, projectile, width, height) {
+  if (!projectile?.attackSystemVersion) return;
+  const targetX = Number(projectile.targetX);
+  const targetY = Number(projectile.targetY);
+  if (!Number.isFinite(targetX) || !Number.isFinite(targetY)) return;
+  const target = screenPoint(targetX, targetY, width, height);
+  const logicalScale = Math.min(width, height);
+  const radius = Math.max(0, Number(projectile.effectRadius) || 0) * logicalScale;
+  const lineWidth = Math.max(0, Number(projectile.lineWidth) || 0) * logicalScale;
+
+  if (radius > 0) {
+    if (projectile.weaponType === "EXPLOSIVE") {
+      drawCircleBoundary(ctx, target, radius * 0.34, 0.20, [3, 4]);
+      drawCircleBoundary(ctx, target, radius * 0.68, 0.18, [5, 5]);
+      drawCircleBoundary(ctx, target, radius, 0.24, [7, 5]);
+    } else {
+      drawCircleBoundary(ctx, target, radius, 0.18, [5, 5]);
+    }
+  }
+
+  if (lineWidth > 0 && projectile.weaponType === "PIERCING") {
+    const source = sourceLogicalPoint(projectile);
+    const start = screenPoint(source.x, source.y, width, height);
+    ctx.save();
+    ctx.strokeStyle = "rgba(190,166,244,.15)";
+    ctx.lineWidth = Math.max(1, lineWidth);
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(start.x, start.y);
+    ctx.lineTo(target.x, target.y);
+    ctx.stroke();
+    ctx.restore();
+  }
 }
 
 function drawProjectileTrails(ctx, width, height) {
   const fever = document.getElementById("app")?.classList.contains("fever-active") ?? false;
-  for (const projectile of combinedProjectiles()) {
+  for (const projectile of runtimeProjectiles) {
     if (!phase2WeaponProfile(projectile.weaponType)) continue;
     const source = sourceLogicalPoint(projectile);
     const currentPoint = screenPoint(projectile.x, projectile.y, width, height);
     const previousPoint = screenPoint(projectile.previousX, projectile.previousY, width, height);
     const sourcePoint = screenPoint(source.x, source.y, width, height);
+    drawProjectileAttackGeometry(ctx, projectile, width, height);
     drawPhase2ProjectileTrail(ctx, projectile, currentPoint, previousPoint, sourcePoint, fever);
   }
 }
@@ -192,6 +240,39 @@ function drawImpactEvent(ctx, event, width, height, ageMs) {
   drawPhase2Impact(ctx, event, point, sourcePoint, ageMs);
 }
 
+function drawExactImpactGeometry(ctx, width, height) {
+  const firstByProjectile = new Map();
+  for (const event of weaponAttackRuntimeImpacts()) {
+    const key = event.projectileId ?? `beam:${event.sourceColumn}:${event.createdAtSeconds}`;
+    if (!firstByProjectile.has(key)) firstByProjectile.set(key, event);
+  }
+  for (const event of firstByProjectile.values()) {
+    const life = Math.max(0, 1 - Number(event.ageMs || 0) / 520);
+    if (life <= 0) continue;
+    const point = screenPoint(event.x, event.y, width, height);
+    const logicalScale = Math.min(width, height);
+    const radius = Math.max(0, Number(event.effectRadius) || 0) * logicalScale;
+    if (event.weaponType === "EXPLOSIVE" && radius > 0) {
+      drawCircleBoundary(ctx, point, radius * 0.34, 0.28 * life);
+      drawCircleBoundary(ctx, point, radius * 0.68, 0.24 * life);
+      drawCircleBoundary(ctx, point, radius, 0.34 * life);
+    }
+    if (event.weaponType === "PIERCING" && Number(event.lineWidth) > 0) {
+      const sourceColumn = Math.max(0, Math.min(3, Math.trunc(Number(event.sourceColumn) || 0)));
+      const source = screenPoint((sourceColumn + 0.5) / 4, 0.955, width, height);
+      ctx.save();
+      ctx.strokeStyle = `rgba(190,166,244,${0.18 * life})`;
+      ctx.lineWidth = Math.max(1, Number(event.lineWidth) * logicalScale);
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(source.x, source.y);
+      ctx.lineTo(point.x, point.y);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+}
+
 function drawWeaponImpacts(ctx, width, height, nowMs) {
   for (const event of phase1RuntimeEvents()) {
     if (event.type !== "HIT" && event.type !== "KILL") continue;
@@ -200,10 +281,7 @@ function drawWeaponImpacts(ctx, width, height, nowMs) {
     if (ageMs > Math.max(profile.lifeMs, 500)) continue;
     drawImpactEvent(ctx, event, width, height, ageMs);
   }
-  for (const event of weaponAttackRuntimeImpacts()) {
-    if (event.type !== "HIT" && event.type !== "KILL") continue;
-    drawImpactEvent(ctx, event, width, height, event.ageMs);
-  }
+  drawExactImpactGeometry(ctx, width, height);
 }
 
 function renderPhase2Frame(nowMs) {

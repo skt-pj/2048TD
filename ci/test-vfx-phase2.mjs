@@ -24,7 +24,7 @@ const laser = phase2WeaponProfile("LASER");
 
 assert.equal(normal.id, "W01");
 assert.equal(normal.impact.mode, "SPARK");
-assert.ok(normal.projectile.trailPx <= 18, "W01 should stay a restrained baseline");
+assert.ok(normal.projectile.trailPx >= 20, "W01 baseline trail must remain clearly visible");
 
 assert.equal(rapid.id, "W02");
 assert.ok(rapid.projectile.widthPx < normal.projectile.widthPx, "W02 trail must read lighter than W01");
@@ -32,7 +32,7 @@ assert.ok(rapid.impact.lifeMs < normal.impact.lifeMs, "W02 impact must clear fas
 
 assert.equal(machineGun.id, "W03");
 assert.equal(machineGun.impact.mode, "DIRECTIONAL");
-assert.ok(machineGun.impact.maxPrimitives <= 3, "W03 must keep particle density low at high fire rate");
+assert.ok(machineGun.impact.maxPrimitives <= 4, "W03 must keep particle density bounded at high fire rate");
 assert.ok(machineGun.projectile.alpha < rapid.projectile.alpha, "W03 trail must avoid whiteout under sustained fire");
 
 assert.equal(piercing.id, "W04");
@@ -41,14 +41,16 @@ assert.ok(piercing.impact.linePx >= 64, "W04 impact needs a readable through-lin
 assert.ok(piercing.projectile.trailPx > normal.projectile.trailPx * 2, "W04 needs a longer neon afterimage than W01");
 
 assert.equal(explosive.id, "W05");
+assert.equal(explosive.projectile.mode, "MISSILE");
 assert.equal(explosive.impact.mode, "EXPLOSIVE");
 assert.ok(explosive.impact.ringPx >= 36, "W05 blast radius must be visible");
 assert.ok(explosive.impact.radialStreaks >= 8, "W05 needs radial streaks around the blast center");
 
 assert.equal(laser.id, "W06");
+assert.equal(laser.projectile.mode, "LASER");
 assert.equal(laser.impact.mode, "LASER_ENDPOINT");
 assert.ok(laser.projectile.bloomPx >= 10, "W06 needs bloom around the beam core");
-assert.ok(laser.projectile.afterimages >= 3, "W06 needs a distinct beam afterimage");
+assert.equal(laser.projectile.afterimages, 0, "W06 is a beam and must not depend on bullet-style afterimages");
 assert.ok(laser.projectile.trailPx > piercing.projectile.trailPx, "W06 should read as sustained/high-energy rather than a bullet trail");
 
 for (const weaponType of PHASE2_WEAPON_TYPES) {

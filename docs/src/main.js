@@ -1,4 +1,4 @@
-import { GameEngine } from "./game_engine.js?v=fever-aura-lite-2";
+import { GameEngine } from "./game_engine.js";
 import { PlayablesBridge } from "./playables.js?v=youtube-platform-1";
 import { strings } from "./i18n.js?v=board-style-1";
 import { renderBattle, renderBoard, renderComboFever, renderWeaponStrip } from "./renderer.js?v=fever-aura-lite-2";

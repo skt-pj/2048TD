@@ -1,13 +1,15 @@
-import "./vfx_phase0.js?v=vfx-phase0-1";
+import "./weapon_attack_system.js?v=weapon-attacks-web-1";
+import "./weapon_attack_aim.js?v=weapon-attacks-web-1";
+import "./vfx_phase0.js?v=vfx-phase0-2";
 import "./audio.js?v=youtube-platform-1";
 import "./vfx_phase1.js?v=vfx-phase1-2";
-import "./vfx_phase2.js?v=vfx-phase2-1";
+import "./vfx_phase2.js?v=vfx-phase2-2";
 import "./vfx_phase3.js?v=vfx-phase3-1";
 import "./vfx_phase4.js?v=vfx-phase4-1";
 import "./bgm.js?v=youtube-platform-1";
 import "./help.js?v=settings-help-1";
 import "./board_style_setup.js?v=board-style-3";
-import "./enemy_horde.js?v=fever-aura-lite-2";
+import "./enemy_horde.js?v=weapon-attacks-web-1";
 
 const inYouTube = typeof globalThis.ytgame !== "undefined" && Boolean(globalThis.ytgame.IN_PLAYABLES_ENV);
 
@@ -15,7 +17,7 @@ async function start() {
   if (!inYouTube) {
     await import("./ranking_transport.js?v=ranking-save-2");
   }
-  await import("./main.js?v=fever-aura-lite-2");
+  await import("./main.js?v=weapon-attacks-web-1");
 }
 
 start().catch((error) => {

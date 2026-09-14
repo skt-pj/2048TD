@@ -1,4 +1,4 @@
-import "./weapon_attack_system.js?v=weapon-attacks-web-1";
+import "./weapon_attack_system.js?v=weapon-attacks-1";
 import "./weapon_attack_aim.js?v=weapon-attacks-web-1";
 import "./vfx_phase0.js?v=vfx-phase0-2";
 import "./audio.js?v=youtube-platform-1";

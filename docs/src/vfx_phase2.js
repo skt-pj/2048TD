@@ -164,6 +164,76 @@ function drawProjectileAttackGeometry(ctx, projectile, width, height) {
   }
 }
 
+function projectileDirection(currentPoint, previousPoint, sourcePoint) {
+  let dx = currentPoint.x - previousPoint.x;
+  let dy = currentPoint.y - previousPoint.y;
+  let length = Math.hypot(dx, dy);
+  if (length < 0.01) {
+    dx = currentPoint.x - sourcePoint.x;
+    dy = currentPoint.y - sourcePoint.y;
+    length = Math.hypot(dx, dy);
+  }
+  if (length < 0.01) return { x: 0, y: -1 };
+  return { x: dx / length, y: dy / length };
+}
+
+function drawProjectileBody(ctx, projectile, currentPoint, previousPoint, sourcePoint, fever) {
+  if (!projectile?.attackSystemVersion || projectile.weaponType === "EXPLOSIVE") return;
+  const dir = projectileDirection(currentPoint, previousPoint, sourcePoint);
+  const profile = phase2WeaponProfile(projectile.weaponType);
+  if (!profile) return;
+
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  ctx.lineCap = "round";
+
+  if (projectile.weaponType === "NORMAL") {
+    const radius = 4.4 * (fever ? 1.10 : 1);
+    ctx.fillStyle = `rgba(${profile.color},.24)`;
+    ctx.beginPath();
+    ctx.arc(currentPoint.x, currentPoint.y, radius * 1.8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "rgba(244,251,255,.96)";
+    ctx.beginPath();
+    ctx.arc(currentPoint.x, currentPoint.y, radius, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (projectile.weaponType === "RAPID") {
+    ctx.strokeStyle = `rgba(${profile.color},.98)`;
+    ctx.lineWidth = 2.8;
+    ctx.beginPath();
+    ctx.moveTo(currentPoint.x - dir.x * 4, currentPoint.y - dir.y * 4);
+    ctx.lineTo(currentPoint.x + dir.x * 4, currentPoint.y + dir.y * 4);
+    ctx.stroke();
+    ctx.fillStyle = "rgba(255,255,255,.96)";
+    ctx.beginPath();
+    ctx.arc(currentPoint.x, currentPoint.y, 1.7, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (projectile.weaponType === "MACHINE_GUN") {
+    ctx.strokeStyle = `rgba(${profile.color},.94)`;
+    ctx.lineWidth = 2.0;
+    ctx.beginPath();
+    ctx.moveTo(currentPoint.x - dir.x * 4.5, currentPoint.y - dir.y * 4.5);
+    ctx.lineTo(currentPoint.x + dir.x * 3, currentPoint.y + dir.y * 3);
+    ctx.stroke();
+    ctx.fillStyle = "rgba(255,255,255,.90)";
+    ctx.beginPath();
+    ctx.arc(currentPoint.x, currentPoint.y, 1.3, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (projectile.weaponType === "PIERCING") {
+    ctx.strokeStyle = `rgba(${profile.color},.30)`;
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.moveTo(currentPoint.x - dir.x * 9, currentPoint.y - dir.y * 9);
+    ctx.lineTo(currentPoint.x + dir.x * 9, currentPoint.y + dir.y * 9);
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(244,251,255,.98)";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
 function drawProjectileTrails(ctx, width, height) {
   const fever = document.getElementById("app")?.classList.contains("fever-active") ?? false;
   for (const projectile of runtimeProjectiles) {
@@ -174,6 +244,7 @@ function drawProjectileTrails(ctx, width, height) {
     const sourcePoint = screenPoint(source.x, source.y, width, height);
     drawProjectileAttackGeometry(ctx, projectile, width, height);
     drawPhase2ProjectileTrail(ctx, projectile, currentPoint, previousPoint, sourcePoint, fever);
+    drawProjectileBody(ctx, projectile, currentPoint, previousPoint, sourcePoint, fever);
   }
 }
 

@@ -146,7 +146,7 @@ export function renderBattle(canvas, state, landscape, landscapeHand = "left") {
     const type = weaponType(columnLevel(state.board, col));
     const spec = WEAPON_SPRITES[type] ?? WEAPON_SPRITES.NORMAL;
     const ready = 1 - Math.min(1, state.cooldowns[col] / Math.max(0.01, spec.cooldown));
-    const aimAngle = fever ? Number(state.turretAims?.[col]?.angle) || 0 : 0;
+    const aimAngle = Number(state.turretAims?.[col]?.angle) || 0;
     drawTurret(ctx, point.x, point.y, type, landscape, ready, fever, phase, aimAngle, landscapeHand);
   }
 
@@ -155,6 +155,7 @@ export function renderBattle(canvas, state, landscape, landscapeHand = "left") {
     drawEnemy(ctx, enemy, hit, landscape, w, h, fever, phase, landscapeHand);
   }
   for (const projectile of state.projectiles) {
+    if (projectile.attackSystemVersion) continue;
     const point = screenPoint(projectile.x, projectile.y, landscape, w, h, landscapeHand);
     drawProjectile(ctx, point.x, point.y, projectile.weaponType, landscape, fever, landscapeHand);
   }
@@ -360,6 +361,10 @@ function drawTurret(ctx, x, y, type, landscape, readyRatio, fever, phase, aimAng
   ctx.save();
   ctx.translate(x, y);
   if (landscape) ctx.rotate(landscapeHand === "right" ? -Math.PI / 2 : Math.PI / 2);
+  if (fever) {
+    const feverScale = 1.20 + .025 * Math.sin(phase * 6);
+    ctx.scale(feverScale, feverScale);
+  }
 
   ctx.save();
   ctx.rotate(aimAngle);

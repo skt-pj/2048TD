@@ -40,6 +40,7 @@ const requiredCore = [
   "src/vfx_phase3_profiles.js",
   "src/vfx_phase4.js",
   "src/vfx_phase4_profiles.js",
+  "src/vfx_particles.js",
 ];
 
 const spriteFiles = walkFiles(sourceRoot, "assets/sprites");
@@ -65,5 +66,13 @@ for (let phase = 0; phase <= 4; phase += 1) {
     `Playables bootstrap must load VFX phase ${phase}`,
   );
 }
+assert.ok(
+  playablesBootstrap.includes("./vfx_particles.js"),
+  "Playables bootstrap must load particle VFX",
+);
+assert.ok(
+  playablesBootstrap.includes("./weapon_attack_system.js"),
+  "Playables bootstrap must load the redesigned weapon attack system",
+);
 
 console.log(`Playables VFX parity passed: ${checked.length} files match Web source`);

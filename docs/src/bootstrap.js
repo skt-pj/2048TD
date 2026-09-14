@@ -10,6 +10,7 @@ import "./bgm.js?v=youtube-platform-1";
 import "./help.js?v=settings-help-1";
 import "./board_style_setup.js?v=board-style-3";
 import "./enemy_horde.js?v=weapon-attacks-web-1";
+import "./vfx_particles.js?v=vfx-particles-1";
 
 const inYouTube = typeof globalThis.ytgame !== "undefined" && Boolean(globalThis.ytgame.IN_PLAYABLES_ENV);
 

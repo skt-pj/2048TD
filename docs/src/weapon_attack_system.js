@@ -1,4 +1,4 @@
-import { GameEngine } from "./game_engine.js?v=fever-turret-aim-2";
+import { GameEngine } from "./game_engine.js";
 import {
   WeaponType,
   canAttack,
@@ -84,7 +84,7 @@ export function selectWeaponTarget(engine, column, type, ignoreLaneRestriction =
   const candidates = attackableEnemies(engine, column, type, ignoreLaneRestriction);
   if (!candidates.length) return null;
 
-  if (ignoreLaneRestriction && preferredTarget && candidates.some((enemy) => enemy.id === preferredTarget.id)) {
+  if (preferredTarget && candidates.some((enemy) => enemy.id === preferredTarget.id)) {
     return candidates.find((enemy) => enemy.id === preferredTarget.id) ?? null;
   }
 
@@ -129,12 +129,21 @@ function scatterTargets(engine, primary, count, radius) {
   return Array.from({ length: count }, (_, index) => nearby[index % nearby.length]);
 }
 
-function cycleTargets(engine, type, primary, shotCount, profile) {
+function cycleTargets(engine, type, primary, shotCount, profile, column, ignoresLaneRestriction) {
   if (type === WeaponType.MACHINE_GUN) return scatterTargets(engine, primary, shotCount, profile.effectRadius);
   if (type === WeaponType.RAPID) {
+    const source = turretPoint(engine, column);
     const candidates = engine.state.enemies
-      .filter((enemy) => enemy.id !== primary.id && logicalDistance(enemyPoint(enemy), enemyPoint(primary)) <= 0.16)
-      .sort((a, b) => remainingTime(a) - remainingTime(b));
+      .filter((enemy) => enemy.id !== primary.id
+        && canAttack(column, enemy, ignoresLaneRestriction)
+        && inRange(source, enemy, profile.range)
+        && logicalDistance(enemyPoint(enemy), enemyPoint(primary)) <= 0.16)
+      .sort((a, b) => {
+        const ratioA = Number(a.hp) / Math.max(1, Number(a.maxHp) || 1);
+        const ratioB = Number(b.hp) / Math.max(1, Number(b.maxHp) || 1);
+        if (Math.abs(ratioA - ratioB) > 1e-9) return ratioA - ratioB;
+        return remainingTime(a) - remainingTime(b);
+      });
     if (candidates.length) return [primary, candidates[0], ...Array(Math.max(0, shotCount - 2)).fill(primary)].slice(0, shotCount);
   }
   return Array(shotCount).fill(primary);
@@ -341,7 +350,7 @@ GameEngine.prototype.fireProjectile = function weaponAttackFire(column, preferre
 
   const count = profile.emitterOffsets.length;
   const damages = splitCycleDamage(power, count);
-  const targets = cycleTargets(this, type, target, count, profile);
+  const targets = cycleTargets(this, type, target, count, profile, column, ignoresLaneRestriction);
   const now = Number(this.state.elapsedSeconds) || 0;
   for (let index = 0; index < count; index += 1) {
     const shotTarget = targets[index] ?? target;

@@ -33,6 +33,7 @@ const requiredCore = [
   "src/renderer.js",
   "src/weapon_attack_profiles.js",
   "src/weapon_attack_system.js",
+  "src/weapon_attack_aim.js",
   "src/vfx_contract.js",
   "src/vfx_phase0.js",
   "src/vfx_phase1.js",
@@ -64,6 +65,10 @@ const playablesBootstrap = fs.readFileSync(path.join(artifactRoot, "src/bootstra
 assert.ok(
   playablesBootstrap.includes("./weapon_attack_system.js"),
   "Playables bootstrap must load weapon attack system",
+);
+assert.ok(
+  playablesBootstrap.includes("./weapon_attack_aim.js"),
+  "Playables bootstrap must load weapon aiming integration",
 );
 for (let phase = 0; phase <= 4; phase += 1) {
   assert.ok(

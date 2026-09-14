@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
-import { GameEngine } from "../docs/src/game_engine.js?v=fever-turret-aim-2";
+import { GameEngine } from "../docs/src/game_engine.js";
 import { WeaponType } from "../docs/src/column_combat_rules.js";
 import {
   ProjectileKind,
   circularDamageScale,
+  feverRangeProfile,
   weaponAttackProfile,
 } from "../docs/src/weapon_attack_profiles.js";
 import {
@@ -48,6 +49,14 @@ assert.ok(weaponAttackProfile(WeaponType.PIERCING).lineWidth > 0);
 assert.equal(circularDamageScale(0.01, 0.18), 1);
 assert.ok(circularDamageScale(0.12, 0.18) < 1);
 assert.equal(circularDamageScale(0.30, 0.18), 0);
+assert.equal(
+  feverRangeProfile(WeaponType.MACHINE_GUN, true).effectRadius,
+  weaponAttackProfile(WeaponType.MACHINE_GUN).effectRadius * 1.15,
+);
+assert.equal(
+  feverRangeProfile(WeaponType.LASER, true).lineWidth,
+  weaponAttackProfile(WeaponType.LASER).lineWidth * 1.20,
+);
 
 {
   const target = enemy(1, 0, 0.125, 0.50);

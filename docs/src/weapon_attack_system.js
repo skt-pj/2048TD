@@ -129,21 +129,36 @@ function scatterTargets(engine, primary, count, radius) {
   return Array.from({ length: count }, (_, index) => nearby[index % nearby.length]);
 }
 
+function focusSort(a, b) {
+  const ratioA = Number(a.hp) / Math.max(1, Number(a.maxHp) || 1);
+  const ratioB = Number(b.hp) / Math.max(1, Number(b.maxHp) || 1);
+  if (Math.abs(ratioA - ratioB) > 1e-9) return ratioA - ratioB;
+  return remainingTime(a) - remainingTime(b) || a.id - b.id;
+}
+
+function rapidSecondaryCandidates(engine, primary, profile, column, ignoresLaneRestriction) {
+  const source = turretPoint(engine, column);
+  const attackable = engine.state.enemies.filter(
+    (enemy) => enemy.id !== primary.id
+      && canAttack(column, enemy, ignoresLaneRestriction)
+      && inRange(source, enemy, profile.range),
+  );
+  const nearby = attackable
+    .filter((enemy) => logicalDistance(enemyPoint(enemy), enemyPoint(primary)) <= 0.16)
+    .sort(focusSort);
+  if (!ignoresLaneRestriction) return nearby;
+
+  const nearbyIds = new Set(nearby.map((enemy) => enemy.id));
+  const extra = attackable
+    .filter((enemy) => !nearbyIds.has(enemy.id))
+    .sort(focusSort)[0];
+  return extra ? [...nearby, extra].sort(focusSort) : nearby;
+}
+
 function cycleTargets(engine, type, primary, shotCount, profile, column, ignoresLaneRestriction) {
   if (type === WeaponType.MACHINE_GUN) return scatterTargets(engine, primary, shotCount, profile.effectRadius);
   if (type === WeaponType.RAPID) {
-    const source = turretPoint(engine, column);
-    const candidates = engine.state.enemies
-      .filter((enemy) => enemy.id !== primary.id
-        && canAttack(column, enemy, ignoresLaneRestriction)
-        && inRange(source, enemy, profile.range)
-        && logicalDistance(enemyPoint(enemy), enemyPoint(primary)) <= 0.16)
-      .sort((a, b) => {
-        const ratioA = Number(a.hp) / Math.max(1, Number(a.maxHp) || 1);
-        const ratioB = Number(b.hp) / Math.max(1, Number(b.maxHp) || 1);
-        if (Math.abs(ratioA - ratioB) > 1e-9) return ratioA - ratioB;
-        return remainingTime(a) - remainingTime(b);
-      });
+    const candidates = rapidSecondaryCandidates(engine, primary, profile, column, ignoresLaneRestriction);
     if (candidates.length) return [primary, candidates[0], ...Array(Math.max(0, shotCount - 2)).fill(primary)].slice(0, shotCount);
   }
   return Array(shotCount).fill(primary);

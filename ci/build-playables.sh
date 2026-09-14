@@ -32,6 +32,7 @@ rm -f \
 # Use a Playables-only bootstrap with no standalone ranking code path.
 cat > "$OUT_DIR/src/bootstrap.js" <<'PLAYABLES_BOOTSTRAP'
 import "./weapon_attack_system.js?v=weapon-attacks-1";
+import "./weapon_attack_aim.js?v=weapon-attacks-1";
 import "./vfx_phase0.js?v=vfx-phase0-2";
 import "./audio.js?v=youtube-platform-1";
 import "./vfx_phase1.js?v=vfx-phase1-2";

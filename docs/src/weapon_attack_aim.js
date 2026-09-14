@@ -1,6 +1,6 @@
 import { GameEngine, CURRENT_RULES } from "./game_engine.js";
 import { columnLevel, weaponType } from "./column_combat_rules.js";
-import { selectWeaponTarget } from "./weapon_attack_system.js?v=weapon-attacks-web-1";
+import { selectWeaponTarget } from "./weapon_attack_system.js?v=weapon-attacks-1";
 
 const TURRET_AIM_SPEED = Number(CURRENT_RULES?.TURRET_AIM_SPEED) || Math.PI * 1.5;
 const TURRET_AIM_TOLERANCE = 0.02;

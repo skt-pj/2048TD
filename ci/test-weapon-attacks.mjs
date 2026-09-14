@@ -70,6 +70,32 @@ assert.equal(
 }
 
 {
+  const primary = enemy(20, 0, 0.125, 0.55, 1000);
+  const nearby = enemy(21, 0, 0.17, 0.55, 900);
+  nearby.maxHp = 1000;
+  const feverExtra = enemy(22, 1, 0.375, 0.55, 100);
+  feverExtra.maxHp = 1000;
+
+  const normalEngine = quietEngine([primary, nearby, feverExtra]);
+  normalEngine.fireProjectile(0, primary, 40, WeaponType.RAPID, false);
+  normalEngine.tick(0);
+  assert.deepEqual(
+    normalEngine.state.projectiles.map((shot) => shot.targetEnemyId),
+    [primary.id, nearby.id],
+    "normal RAPID second emitter should remain lane-local",
+  );
+
+  const feverEngine = quietEngine([primary, nearby, feverExtra]);
+  feverEngine.fireProjectile(0, primary, 40, WeaponType.RAPID, true);
+  feverEngine.tick(0);
+  assert.deepEqual(
+    feverEngine.state.projectiles.map((shot) => shot.targetEnemyId),
+    [primary.id, feverExtra.id],
+    "FEVER RAPID should add one all-lane secondary target candidate",
+  );
+}
+
+{
   const target = enemy(2, 0, 0.125, 0.55);
   const engine = quietEngine([target]);
   engine.fireProjectile(0, target, 120, WeaponType.MACHINE_GUN, false);
